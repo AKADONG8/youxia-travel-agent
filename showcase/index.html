@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>游侠出行 · 把玩家的游戏口味，转成可执行旅程的 AI 旅行智能体</title>
+<meta name="description" content="2026 飞猪 AI 旅行创新大赛参赛作品：按玩家真正在玩的游戏理解体验偏好，结合飞猪真实供给产出可预订旅程。">
+<style>
+  :root{
+    --bg:#f7f8fa; --card:#fff; --ink:#16191d; --ink2:#4b5158; --ink3:#8a919a;
+    --line:#e4e7eb; --line2:#eff1f4;
+    --blue:#2563eb; --blue-bg:#eff4ff; --blue-d:#1d4ed8;
+    --green:#0f9d58; --green-bg:#eaf7f0;
+    --amber:#d97706; --amber-bg:#fdf5e6;
+    --red:#dc2626; --red-bg:#fdeeee;
+    --purple:#7c3aed; --purple-bg:#f4f0ff;
+    --gray:#6b7280; --gray-bg:#f3f4f6;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);line-height:1.78;font-size:15.5px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Source Han Sans SC",sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 22px}
+
+  /* nav */
+  nav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.9);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;align-items:center;gap:8px;height:52px;overflow-x:auto;scrollbar-width:none}
+  nav .wrap::-webkit-scrollbar{display:none}
+  nav .brand{font-weight:800;font-size:14.5px;margin-right:12px;white-space:nowrap;color:var(--ink)}
+  nav a{font-size:13.5px;color:var(--ink2);text-decoration:none;padding:5px 11px;border-radius:8px;white-space:nowrap;transition:.15s}
+  nav a:hover{background:var(--gray-bg);color:var(--ink)}
+
+  /* hero */
+  header{background:linear-gradient(135deg,#0f2557 0%,#1d4ed8 52%,#3b82f6 100%);color:#fff;padding:56px 0 48px;position:relative;overflow:hidden}
+  header::after{content:"";position:absolute;right:-90px;top:-90px;width:380px;height:380px;border-radius:50%;
+    background:radial-gradient(circle,rgba(255,255,255,.16),transparent 68%)}
+  header .wrap{position:relative;z-index:1}
+  .kicker{display:inline-block;font-size:12.5px;font-weight:700;letter-spacing:.6px;
+    background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);padding:4px 12px;border-radius:20px;margin-bottom:16px}
+  header h1{margin:0 0 14px;font-size:33px;line-height:1.35;font-weight:800;letter-spacing:-.6px}
+  header h1 em{font-style:normal;background:linear-gradient(90deg,#fde68a,#fbbf24);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  header p.lead{margin:0;font-size:16px;opacity:.92;max-width:760px}
+  .hero-tags{margin-top:22px;display:flex;flex-wrap:wrap;gap:9px}
+  .hero-tags span{font-size:12.5px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.24);
+    padding:5px 13px;border-radius:20px}
+
+  /* section */
+  section{padding:46px 0;border-bottom:1px solid var(--line)}
+  section:last-of-type{border-bottom:none}
+  h2{font-size:23px;margin:0 0 6px;font-weight:800;letter-spacing:-.4px;display:flex;align-items:center;gap:11px}
+  h2 .n{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9px;
+    background:var(--blue);color:#fff;font-size:14px;font-weight:800;flex:none}
+  .sub{color:var(--ink3);font-size:14px;margin:0 0 22px;padding-left:39px}
+  h3{font-size:16.5px;margin:30px 0 12px;font-weight:700}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 24px;
+    box-shadow:0 1px 2px rgba(16,24,40,.04)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:840px){.grid2,.grid3{grid-template-columns:1fr}}
+
+  /* pain */
+  .pain{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card)}
+  @media(max-width:840px){.pain{grid-template-columns:1fr}}
+  .pain > div{padding:22px 24px}
+  .pain .bad{border-right:1px solid var(--line);background:#fcfcfd}
+  @media(max-width:840px){.pain .bad{border-right:none;border-bottom:1px solid var(--line)}}
+  .pain h4{margin:0 0 12px;font-size:14px;font-weight:800;letter-spacing:.3px}
+  .pain .bad h4{color:var(--red)} .pain .good h4{color:var(--green)}
+  .pain ul{margin:0;padding-left:0;list-style:none}
+  .pain li{position:relative;padding-left:22px;margin-bottom:9px;font-size:14px;color:var(--ink2)}
+  .pain .bad li::before{content:"×";position:absolute;left:4px;color:var(--red);font-weight:800}
+  .pain .good li::before{content:"✓";position:absolute;left:2px;color:var(--green);font-weight:800}
+
+  /* taste map */
+  .taste{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+  @media(max-width:980px){.taste{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.taste{grid-template-columns:1fr}}
+  .tcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px 16px;display:flex;flex-direction:column}
+  .tcard .cat{font-size:12.5px;font-weight:800;padding:3px 9px;border-radius:7px;display:inline-block;margin-bottom:11px;align-self:flex-start}
+  .c1{background:#eef2ff;color:#3730a3} .c2{background:#fef3c7;color:#92400e}
+  .c3{background:#fee2e2;color:#991b1b} .c4{background:#f3e8ff;color:#6b21a8}
+  .c5{background:#dcfce7;color:#166534}
+  .tcard .games{font-size:12.8px;color:var(--ink2);line-height:1.75;flex:1}
+  .tcard .games b{color:var(--ink);font-weight:600}
+  .tcard .arrow{text-align:center;color:var(--ink3);font-size:15px;margin:9px 0 7px;line-height:1}
+  .tcard .dest{font-size:12.6px;color:var(--blue-d);background:var(--blue-bg);border-radius:8px;padding:9px 11px;line-height:1.7}
+
+  /* steps */
+  .steps{display:flex;flex-direction:column;gap:0}
+  .step{display:grid;grid-template-columns:88px 1fr;gap:20px;padding:20px 0;border-bottom:1px solid var(--line2)}
+  .step:last-child{border-bottom:none}
+  @media(max-width:640px){.step{grid-template-columns:1fr;gap:10px}}
+  .step .no{font-size:12.5px;font-weight:800;color:#fff;background:var(--blue);border-radius:9px;
+    padding:5px 0;text-align:center;height:fit-content}
+  .step .no.amber{background:var(--amber)} .step .no.red{background:var(--red)}
+  .step .ttl{font-weight:700;font-size:15.5px;margin-bottom:6px}
+  .step .desc{font-size:14px;color:var(--ink2)}
+  .step .quote{margin-top:11px;font-size:13.5px;background:var(--gray-bg);border-left:3px solid var(--blue);
+    padding:10px 14px;border-radius:0 8px 8px 0;color:var(--ink2)}
+  .step .tools{margin-top:9px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12.3px;
+    color:#0b7a44;background:var(--green-bg);padding:8px 12px;border-radius:8px;overflow-x:auto;white-space:pre}
+
+  /* shots */
+  .shots{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+  @media(max-width:840px){.shots{grid-template-columns:1fr}}
+  .shot{background:var(--card);border:1px solid var(--line);border-radius:13px;overflow:hidden;
+    box-shadow:0 1px 3px rgba(16,24,40,.05)}
+  .shot img{width:100%;display:block;border-bottom:1px solid var(--line);background:#fbfbfc}
+  .shot .cap{padding:13px 16px}
+  .shot .cap .t{font-weight:700;font-size:14px;margin-bottom:3px}
+  .shot .cap .d{font-size:13px;color:var(--ink2)}
+  .shot .cap .tagline{margin-top:8px;display:inline-block;font-size:11.5px;font-weight:700;
+    padding:2px 8px;border-radius:6px;background:var(--amber-bg);color:#8a5a00}
+  .shot .cap .tagline.ok{background:var(--green-bg);color:#0b7a44}
+
+  /* table */
+  .tblwrap{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;overflow-x:auto}
+  table{border-collapse:collapse;width:100%;font-size:14px;min-width:520px}
+  th,td{padding:12px 14px;text-align:left;border-bottom:1px solid var(--line2)}
+  th{background:#fafbfc;font-weight:700;font-size:13px;color:var(--ink2);white-space:nowrap}
+  tbody tr:last-child td{border-bottom:none}
+  .ok{color:var(--green);font-weight:700}
+  code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:13px;
+    background:var(--gray-bg);padding:1.5px 6px;border-radius:5px;color:var(--ink2)}
+
+  /* callout */
+  .call{border-radius:12px;padding:16px 20px;font-size:14px;margin:18px 0;line-height:1.75}
+  .call.info{background:var(--blue-bg);border:1px solid #d3e0ff;color:#1e3a8a}
+  .call.warn{background:var(--amber-bg);border:1px solid #f3e0b8;color:#7c4a03}
+  .call.key{background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1px solid #fde68a;color:#78350f}
+  .call b{font-weight:800}
+
+  /* boundary */
+  .bnd{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:18px 20px;margin-bottom:12px}
+  .bnd .bt{font-weight:700;font-size:14.5px;margin-bottom:7px;display:flex;align-items:center;gap:8px}
+  .bnd .bt i{width:7px;height:7px;border-radius:50%;background:var(--amber);flex:none}
+  .bnd p{margin:0;font-size:13.8px;color:var(--ink2)}
+
+  /* footer */
+  footer{background:#111827;color:#9ca3af;padding:40px 0;font-size:13.5px}
+  footer a{color:#93c5fd;text-decoration:none}
+  footer a:hover{text-decoration:underline}
+  footer .links{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:18px}
+  footer .links a{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);
+    padding:8px 15px;border-radius:9px;font-size:13.5px;color:#e5e7eb}
+  footer .links a:hover{background:rgba(255,255,255,.14);text-decoration:none}
+  footer .fine{font-size:12.5px;line-height:1.9;color:#6b7280}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <span class="brand">游侠出行</span>
+    <a href="#why">为什么</a>
+    <a href="#diff">差异</a>
+    <a href="#map">游戏口味地图</a>
+    <a href="#flow">对话流程</a>
+    <a href="#demo">逐幕实录</a>
+    <a href="#data">数据真实性</a>
+    <a href="#arch">架构</a>
+    <a href="#bound">边界</a>
+  </div>
+</nav>
+
+<header>
+  <div class="wrap">
+    <span class="kicker">2026 飞猪 AI 旅行创新大赛 · 阿里云百炼 Managed Agent</span>
+    <h1>你玩什么游戏，<em>决定你去哪座城</em></h1>
+    <p class="lead">
+      游侠出行按玩家真正在玩的游戏（LOL / 原神 / 黑神话 / CS2 / 小众独立游戏）理解体验偏好，
+      再结合飞猪真实供给，产出<strong>带真实价格和预订链接</strong>的可执行旅程——
+      而不是一份谁都能拿到的通用攻略。
+    </p>
+    <div class="hero-tags">
+      <span>百炼 Managed Agent · Qwen3.7-Plus</span>
+      <span>飞猪 flyai-skill · 8 类查询</span>
+      <span>自建「游戏口味地图」知识库</span>
+      <span>两次真实兜底已实测</span>
+    </div>
+  </div>
+</header>
+
+<!-- 1 为什么 -->
+<section id="why">
+  <div class="wrap">
+    <h2><span class="n">1</span>为什么做这个</h2>
+    <p class="sub">游戏是最诚实的兴趣标签——它是行为，不是自述。</p>
+
+    <div class="card" style="margin-bottom:18px">
+      <p style="margin:0 0 14px;font-size:15px;color:var(--ink2)">
+        一个在《黑神话：悟空》里泡了 300 小时的玩家，和一个在《星露谷物语》里泡了 300 小时的玩家，
+        想从旅行里获得的东西完全不同——前者要古建朝圣的震撼，后者要田园治愈的松弛。
+      </p>
+      <p style="margin:0;font-size:15px;color:var(--ink2)">
+        但现有旅行 AI 给两个人的答案，大概率是同一份「XX 市必去十大景点」。
+        一个人在游戏里愿意花时间做什么，直接暴露了他真实的体验偏好；
+        这个信号比「你平时喜欢什么类型的目的地」可靠得多，<b style="color:var(--ink)">因为它是行为，不是自述</b>。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- 2 差异 -->
+<section id="diff">
+  <div class="wrap">
+    <h2><span class="n">2</span>通用攻略问答给不出什么</h2>
+    <p class="sub">同一个问题，两种处理方式。这是实测结果，不是设想。</p>
+
+    <div class="call info" style="margin-top:0">
+      <b>玩家说：</b>「我玩一个很冷门的像素风独立游戏，周末想去成都玩，但不知道玩啥」
+    </div>
+
+    <div class="pain">
+      <div class="bad">
+        <h4>通用攻略问答</h4>
+        <ul>
+          <li>按「成都」直接给通用景点列表</li>
+          <li>宽窄巷子、锦里、大熊猫基地，三件套</li>
+          <li>不解释为什么是这几个</li>
+          <li>没有价格、没有车次、没有预订入口</li>
+          <li>没有赛事就当作没这回事</li>
+          <li>输出一段文本，看完还得自己去查</li>
+        </ul>
+      </div>
+      <div class="good">
+        <h4>游侠出行</h4>
+        <ul>
+          <li>先识别<b>小众游戏</b>信号 → 走三级兜底</li>
+          <li>追问具体游戏名做二次校准，不硬猜</li>
+          <li>调 <code>search-train</code> 给出真实车次：D49 ¥85 / Z333 ¥50.5 / T8804 ¥50.5</li>
+          <li>调 <code>search-hotel</code> 给出真实房价：雷泽电竞酒店 ¥29/晚、758 电竞酒店 ¥55/晚</li>
+          <li>给出<b>推荐逻辑</b>：A 方案 vs B 方案各适合什么状态，1200 预算怎么拆</li>
+          <li>主动查赛事 → <b>确认无票</b> → 如实告知 + 给替代路径</li>
+          <li>输出三日任务清单，<b>全部带飞猪跳转链接</b></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="call key">
+      <b>最后一行是关键：我们主动展示失败。</b>
+      演示里飞猪本周末确实没有成都体育赛事，智能体没有编一个出来，而是说「暂时没搜到，给你三条替代路径」。
+      这条兜底在真实会话中触发过 <b>2 次</b>（第 2 幕、第 5 幕）。
+    </div>
+  </div>
+</section>
+
+<!-- 3 游戏口味地图 -->
+<section id="map">
+  <div class="wrap">
+    <h2><span class="n">3</span>「游戏口味地图」知识库</h2>
+    <p class="sub">本项目不是提示词堆砌，是一份可扩展的知识工程。覆盖 5 大类目、约 24 款游戏。</p>
+
+    <div class="taste">
+      <div class="tcard">
+        <span class="cat c1">开放世界 / RPG</span>
+        <div class="games">
+          <b>原神</b> / 崩坏：星穹铁道<br>
+          <b>塞尔达传说</b><br>
+          <b>艾尔登法环</b> / 黑魂<br>
+          <b>荒野大镖客 2</b><br>
+          <b>刺客信条</b>
+        </div>
+        <div class="arrow">↓</div>
+        <div class="dest">张家界（璃月原型）、黄龙、九寨沟；桂林喀斯特、野外露营；平遥 / 凤凰古城、历史古迹徒步；西北戈壁、草原骑马；西安 / 南京古迹沉浸游</div>
+      </div>
+      <div class="tcard">
+        <span class="cat c2">3A 单机 / 剧情</span>
+        <div class="games">
+          <b>黑神话：悟空</b><br>
+          <b>赛博朋克 2077</b><br>
+          <b>巫师 3</b> / 上古卷轴<br>
+          <b>底特律</b> / 暴雨
+        </div>
+        <div class="arrow">↓</div>
+        <div class="dest">山西古建朝圣：悬空寺、应县木塔、晋祠、云冈石窟；重庆洪崖洞夜景、上海陆家嘴；欧洲风情小镇、雪山度假；影视取景地打卡</div>
+      </div>
+      <div class="tcard">
+        <span class="cat c3">竞技 / MOBA / FPS</span>
+        <div class="games">
+          <b>英雄联盟</b><br>
+          <b>王者荣耀</b><br>
+          <b>无畏契约</b><br>
+          <b>CS2</b> / 绝地求生
+        </div>
+        <div class="arrow">↓</div>
+        <div class="dest">LPL 线下赛观赛、电竞主题酒店、赛事城市周边游；KPL 线下观赛、电竞馆、战队城市打卡；VCT 赛事观赛；射击体验馆、城市电竞活动</div>
+      </div>
+      <div class="tcard">
+        <span class="cat c4">二次元 / 抽卡</span>
+        <div class="games">
+          <b>明日方舟</b> / 碧蓝航线<br>
+          <b>少女前线</b> / 崩坏 3<br>
+          <b>初音未来</b> / 音游
+        </div>
+        <div class="arrow">↓</div>
+        <div class="dest">漫展（CP / 萤火虫）、ACG 主题咖啡厅、谷子店巡礼；二次元主题街区、圣地巡礼、角色联动快闪店；音乐节、Live 演出、ACG 演唱会</div>
+      </div>
+      <div class="tcard">
+        <span class="cat c5">休闲 / 模拟经营</span>
+        <div class="games">
+          <b>星露谷物语</b> / 牧场物语<br>
+          <b>我的世界</b><br>
+          <b>动物森友会</b><br>
+          <b>双人成行</b> / 分手厨房
+        </div>
+        <div class="arrow">↓</div>
+        <div class="dest">田园民宿、农家乐、采摘园、乡村度假；创意园区、乐高乐园、DIY 工坊；海岛度假、自然疗愈、主题民宿；主题乐园、密室逃脱、温泉双人游</div>
+      </div>
+    </div>
+
+    <h3>三级匹配机制</h3>
+    <div class="card" style="padding:20px 22px">
+      <svg viewBox="0 0 680 250" width="100%" role="img" aria-label="三级匹配机制流程图">
+        <defs>
+          <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0,0 L9,4.5 L0,9 z" fill="#8a919a"/>
+          </marker>
+        </defs>
+
+        <rect x="250" y="10" width="180" height="36" rx="9" fill="#f3f4f6" stroke="#e4e7eb"/>
+        <text x="340" y="33" font-size="13.5" fill="#16191d" text-anchor="middle" font-weight="700">玩家输入</text>
+        <line x1="340" y1="46" x2="340" y2="66" stroke="#8a919a" stroke-width="1.5" marker-end="url(#ar)"/>
+
+        <rect x="150" y="68" width="380" height="34" rx="9" fill="#eef2ff" stroke="#c7d2fe"/>
+        <text x="340" y="90" font-size="13" fill="#3730a3" text-anchor="middle" font-weight="700">① 提到具体游戏名？→ 精确映射（约 24 款 · 5 大类目）</text>
+        <line x1="340" y1="102" x2="340" y2="120" stroke="#8a919a" stroke-width="1.5" marker-end="url(#ar)"/>
+        <text x="352" y="117" font-size="11.5" fill="#8a919a">未命中</text>
+
+        <rect x="150" y="122" width="380" height="34" rx="9" fill="#fef3c7" stroke="#fde68a"/>
+        <text x="340" y="144" font-size="13" fill="#92400e" text-anchor="middle" font-weight="700">② 能识别类型 / 风格信号？→ 8 条兜底规则</text>
+        <line x1="340" y1="156" x2="340" y2="174" stroke="#8a919a" stroke-width="1.5" marker-end="url(#ar)"/>
+        <text x="352" y="171" font-size="11.5" fill="#8a919a">仍不能</text>
+
+        <rect x="150" y="176" width="380" height="34" rx="9" fill="#fee2e2" stroke="#fecaca"/>
+        <text x="340" y="198" font-size="13" fill="#991b1b" text-anchor="middle" font-weight="700">③ 反问引导 —— 不冷场，把玩家拉回可识别区间</text>
+
+        <rect x="546" y="68" width="126" height="142" rx="10" fill="#eaf7f0" stroke="#bbf7d0"/>
+        <text x="609" y="96" font-size="12" fill="#0b7a44" text-anchor="middle" font-weight="700">硬约束</text>
+        <text x="609" y="120" font-size="11.5" fill="#0b7a44" text-anchor="middle">映射目的地</text>
+        <text x="609" y="138" font-size="11.5" fill="#0b7a44" text-anchor="middle">必须能被</text>
+        <text x="609" y="156" font-size="11.5" fill="#0b7a44" text-anchor="middle">search-poi /</text>
+        <text x="609" y="174" font-size="11.5" fill="#0b7a44" text-anchor="middle">keyword-search</text>
+        <text x="609" y="192" font-size="11.5" fill="#0b7a44" text-anchor="middle">查到真实数据</text>
+      </svg>
+
+      <p style="margin:14px 0 0;font-size:14px;color:var(--ink2)">
+        <b>第二级的关键词来自玩家实际怎么描述自己的游戏</b>——「像素风」「剧情很好」「喜欢种田」「喜欢建造」，
+        而不是从游戏分类学里推导的「Roguelike」「Metroidvania」。
+        <b style="color:var(--ink)">面向用户的分类体系，要用用户的语言，不是行业的语言。</b>
+      </p>
+      <p style="margin:10px 0 0;font-size:14px;color:var(--ink2)">
+        右侧那条硬约束是本项目主动设的：<b>知识库不允许映射到飞猪查不到的地方</b>。
+        这保证产出的每一条推荐都是「可预订的」，而不是「灵感建议」。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- 4 对话流程 -->
+<section id="flow">
+  <div class="wrap">
+    <h2><span class="n">4</span>五步组队法</h2>
+    <p class="sub">把「体验意图理解」做成可复现的流程，而不是靠模型随机发挥。</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="no">第 0 步</div>
+        <div>
+          <div class="ttl">开场 · 主动服务彩蛋</div>
+          <div class="desc">已知游戏偏好 → 主动推荐对应主题；未知 → 先问一句「老板最近肝什么游戏？」并给出热门选项。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="no">第 1 步</div>
+        <div>
+          <div class="ttl">识别玩家画像</div>
+          <div class="desc">从对话里提取游戏名 / 类型 / 偏好风格，查「游戏口味地图」做三级匹配。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="no">第 2 步</div>
+        <div>
+          <div class="ttl">挖掘出行需求 + 体验偏好问答</div>
+          <div class="desc">必须确认三要素：目的地 / 时间 / 预算。再用五类偏好问答定位真实需求。</div>
+          <div class="quote">
+            <b>你玩游戏时，最看重下面哪种感觉？</b><br>
+            A. 竞技与社交 &nbsp;·&nbsp; B. 探索与世界观 &nbsp;·&nbsp; C. 音乐与节奏 &nbsp;·&nbsp; D. 经营与慢生活 &nbsp;·&nbsp; E. 收集与打卡
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="no">第 3 步</div>
+        <div>
+          <div class="ttl">查真实数据并组装方案</div>
+          <div class="desc">按「玩什么 → 怎么去 → 住哪里 → 顺路玩什么」的完整链路调用工具，每次返回后展示名称、价格、场次、图片与跳转链接。</div>
+          <div class="tools">activate_skill(flyai) → bash flyai search-train / search-hotel / search-poi / keyword-search</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="no amber">兜底</div>
+        <div>
+          <div class="ttl">三套失败兜底预案</div>
+          <div class="desc">
+            <b>① 同城替代体验</b>（目标活动没了，同城换一个同类型的）&nbsp;
+            <b>② 周边城市</b>（同城没有，扩到周边）&nbsp;
+            <b>③ 改期改行程</b>（都没有，给改期建议或重排）
+          </div>
+          <div class="quote">
+            提示词里显式规定：<b>查不到必须走三套兜底，禁止补数据</b>；所有推荐必须带「名称 + 价格或场次 + 跳转链接」，缺任一项即视为不合格输出。
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="no">第 4 步</div>
+        <div>
+          <div class="ttl">收尾</div>
+          <div class="desc">提示所有推荐均可在飞猪直接下单（带链接），询问是否调整预算 / 时间 / 城市，重跑方案。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 逐幕实录 -->
+<section id="demo">
+  <div class="wrap">
+    <h2><span class="n">5</span>逐幕实录</h2>
+    <p class="sub">故事线 B 强化版：小众像素风玩家 · 重庆 → 成都 · 周末电竞开黑之旅。以下为真实百炼 Dong8 会话截图。</p>
+
+    <div class="shots">
+      <div class="shot">
+        <img src="../screenshots/01-opening.png" alt="第0幕 开场">
+        <div class="cap">
+          <div class="t">第 0 幕 · 开场</div>
+          <div class="d">识别「小众像素风独立游戏」信号，不急着给答案，先追问校准 + 探查成都周末活动。</div>
+          <span class="tagline ok">三级兜底第 ② 级启动</span>
+        </div>
+      </div>
+      <div class="shot">
+        <img src="../screenshots/02-transport-hotel.png" alt="第1幕 挖掘需求与交通住宿">
+        <div class="cap">
+          <div class="t">第 1 幕 · 挖掘需求与交通住宿</div>
+          <div class="d">重庆出发、周五走周日回、预算 1200 → 返回 D49 ¥85 / Z333 ¥50.5 / T8804 ¥50.5 真实车次，并做预算拆解。</div>
+          <span class="tagline ok">飞猪真实数据</span>
+        </div>
+      </div>
+      <div class="shot">
+        <img src="../screenshots/03-recommend-rationale.png" alt="第2幕 推荐逻辑与无赛事兜底">
+        <div class="cap">
+          <div class="t">第 2 幕 · 推荐逻辑 + 无赛事兜底</div>
+          <div class="d">把「游戏口味」与「体验意图」拆开：游戏口味走小众兜底，体验意图走竞技线，给出田园治愈 + 观赛彩蛋组合方案。</div>
+          <span class="tagline">真实兜底触发 ①</span>
+        </div>
+      </div>
+      <div class="shot">
+        <img src="../screenshots/04-esports-hotel.png" alt="第4幕 电竞酒店真实数据">
+        <div class="cap">
+          <div class="t">第 4 幕 · 电竞酒店真实数据</div>
+          <div class="d">返回雷泽电竞酒店 ¥29/晚、758 电竞酒店 ¥55/晚等真实房源 + 三日任务清单。</div>
+          <span class="tagline ok">飞猪真实数据</span>
+        </div>
+      </div>
+      <div class="shot">
+        <img src="../screenshots/05-donganhu-fallback.png" alt="第5幕 东安湖无赛事兜底">
+        <div class="cap">
+          <div class="t">第 5 幕 · 场馆查询 + 第二次兜底</div>
+          <div class="d">确认东安湖 = 2021 大运会主场馆、4 万座、龙泉驿区；飞猪本周末东安湖无赛事，重排 Day1 含场馆打卡 + 交通指南。</div>
+          <span class="tagline">真实兜底触发 ②</span>
+        </div>
+      </div>
+      <div class="shot">
+        <img src="../screenshots/06-z-train.png" alt="第6幕 Z字头火车">
+        <div class="cap">
+          <div class="t">第 6 幕 · Z 字头火车（数据真实性铁证）</div>
+          <div class="d">返回去程 Z333（重庆北 05:38 → 成都西 09:00，¥50.5）+ 回程 Z588，并<b>主动纠正用户说的「Z587 方向反了」</b>。</div>
+          <span class="tagline ok">主动纠错 → 证明非编造</span>
+        </div>
+      </div>
+      <div class="shot" style="grid-column:1/-1">
+        <img src="../screenshots/07-closing.png" alt="第7幕 收尾">
+        <div class="cap">
+          <div class="t">第 7 幕 · 收尾</div>
+          <div class="d">生成最终行程单：Z333 去程、T8804 回程、雷泽电竞酒店 × 2 晚、东安湖 / 熊猫基地 / 都江堰 / 锦江夜游 / 开黑，<b>总花费约 ¥850</b>，含全部预订链接。</div>
+          <span class="tagline ok">全部带飞猪跳转链接</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 6 数据真实性 -->
+<section id="data">
+  <div class="wrap">
+    <h2><span class="n">6</span>数据真实性核验</h2>
+    <p class="sub">所有数据均通过工具调用链路获得，非模型编造。逐条可核对。</p>
+
+    <div class="tblwrap">
+      <table>
+        <thead>
+          <tr><th>验证点</th><th>结果</th><th>证据</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>成都电竞酒店</td><td class="ok">真实</td><td>雷泽电竞酒店 ¥29/晚、758 电竞酒店 ¥55/晚、星空穿梭国际青年酒店 ¥10/晚</td></tr>
+          <tr><td>东安湖体育公园</td><td class="ok">真实</td><td>2021 大运会主场馆、4 万座、龙泉驿区、地铁 2 号线 + 公交 876 路可达</td></tr>
+          <tr><td>Z 字头火车</td><td class="ok">真实（含修正）</td><td>去程 Z333（¥50.5）、回程 Z588（¥50.5）；智能体主动纠正「Z587 方向反了」</td></tr>
+          <tr><td>无赛事兜底</td><td class="ok">真实</td><td>第 2 / 5 幕 <code>keyword-search</code> 返回飞猪本周末成都 / 东安湖无体育赛事门票</td></tr>
+          <tr><td>车次价格</td><td class="ok">真实</td><td>D49 ¥85、Z333 ¥50.5、T8804 ¥50.5，均为 <code>status:0</code> 级真实票价</td></tr>
+          <tr><td>预订链接</td><td class="ok">真实</td><td>返回 <code>router.feizhu.com</code> 真实飞猪跳转链接</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="call key">
+      <b>为什么「Z587 被纠正」这一条特别重要：</b>
+      如果价格是模型编的，它不会去纠正用户给的车次号。
+      这个「主动纠错」行为本身就是数据来自真实查询的证据。
+    </div>
+  </div>
+</section>
+
+<!-- 7 架构 -->
+<section id="arch">
+  <div class="wrap">
+    <h2><span class="n">7</span>架构与职责边界</h2>
+    <p class="sub">模型负责理解、编排、解释；飞猪负责事实；用户负责决策与支付。三者不越界。</p>
+
+    <div class="card">
+      <svg viewBox="0 0 680 380" width="100%" role="img" aria-label="系统架构图">
+        <defs>
+          <marker id="ar2" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0,0 L9,4.5 L0,9 z" fill="#8a919a"/>
+          </marker>
+        </defs>
+
+        <rect x="200" y="8" width="280" height="34" rx="9" fill="#f3f4f6" stroke="#e4e7eb"/>
+        <text x="340" y="30" font-size="13" fill="#16191d" text-anchor="middle" font-weight="700">用户（游戏玩家）</text>
+        <line x1="340" y1="42" x2="340" y2="60" stroke="#8a919a" stroke-width="1.5" marker-end="url(#ar2)"/>
+
+        <rect x="70" y="62" width="540" height="150" rx="12" fill="#eff4ff" stroke="#c7d2fe"/>
+        <text x="90" y="84" font-size="12.5" fill="#1e3a8a" font-weight="800">阿里云百炼 Managed Agent「Dong8」· Qwen3.7-Plus</text>
+
+        <rect x="88" y="96" width="150" height="46" rx="8" fill="#fff" stroke="#dbe4f0"/>
+        <text x="163" y="115" font-size="11.5" fill="#16191d" text-anchor="middle" font-weight="700">① 意图识别</text>
+        <text x="163" y="131" font-size="10.5" fill="#8a919a" text-anchor="middle">游戏名 / 类型 / 偏好</text>
+
+        <rect x="250" y="96" width="150" height="46" rx="8" fill="#fff" stroke="#dbe4f0"/>
+        <text x="325" y="115" font-size="11.5" fill="#16191d" text-anchor="middle" font-weight="700">② 知识检索</text>
+        <text x="325" y="131" font-size="10.5" fill="#8a919a" text-anchor="middle">游戏口味地图三级匹配</text>
+
+        <rect x="412" y="96" width="180" height="46" rx="8" fill="#fff" stroke="#dbe4f0"/>
+        <text x="502" y="115" font-size="11.5" fill="#16191d" text-anchor="middle" font-weight="700">③ 需求补全</text>
+        <text x="502" y="131" font-size="10.5" fill="#8a919a" text-anchor="middle">目的地 / 时间 / 预算</text>
+
+        <rect x="88" y="152" width="150" height="46" rx="8" fill="#fff" stroke="#dbe4f0"/>
+        <text x="163" y="171" font-size="11.5" fill="#16191d" text-anchor="middle" font-weight="700">④ 工具编排</text>
+        <text x="163" y="187" font-size="10.5" fill="#8a919a" text-anchor="middle">玩→行→住→顺路</text>
+
+        <rect x="250" y="152" width="150" height="46" rx="8" fill="#fff" stroke="#dbe4f0"/>
+        <text x="325" y="171" font-size="11.5" fill="#16191d" text-anchor="middle" font-weight="700">⑤ 方案组装</text>
+        <text x="325" y="187" font-size="10.5" fill="#8a919a" text-anchor="middle">价格 / 场次 / 链接</text>
+
+        <rect x="412" y="152" width="180" height="46" rx="8" fill="#fdf5e6" stroke="#fde68a"/>
+        <text x="502" y="171" font-size="11.5" fill="#92400e" text-anchor="middle" font-weight="700">⑥ 失败兜底</text>
+        <text x="502" y="187" font-size="10.5" fill="#a16207" text-anchor="middle">同城 / 周边 / 改期</text>
+
+        <line x1="340" y1="212" x2="340" y2="236" stroke="#8a919a" stroke-width="1.5" marker-end="url(#ar2)"/>
+        <text x="352" y="230" font-size="11" fill="#8a919a">activate_skill(flyai)</text>
+
+        <rect x="70" y="238" width="540" height="86" rx="12" fill="#eaf7f0" stroke="#bbf7d0"/>
+        <text x="90" y="260" font-size="12.5" fill="#0b7a44" font-weight="800">飞猪官方 flyai-skill · 8 类查询能力</text>
+        <text x="90" y="282" font-size="11.5" fill="#0b7a44">keyword-search · ai-search · search-flight · search-train</text>
+        <text x="90" y="300" font-size="11.5" fill="#0b7a44">search-hotel · search-poi · search-marriott-hotel · search-marriott-package</text>
+        <text x="90" y="317" font-size="11" fill="#4d7c5f">→ 真实价格 / 场次 / 库存 / router.feizhu.com 预订链接</text>
+
+        <line x1="340" y1="324" x2="340" y2="346" stroke="#8a919a" stroke-width="1.5" marker-end="url(#ar2)"/>
+        <rect x="200" y="348" width="280" height="30" rx="9" fill="#1d4ed8"/>
+        <text x="340" y="368" font-size="12.5" fill="#fff" text-anchor="middle" font-weight="700">可执行旅程方案（带预订入口）</text>
+      </svg>
+    </div>
+
+    <div class="tblwrap" style="margin-top:16px">
+      <table>
+        <thead><tr><th>环节</th><th>由谁负责</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>意图识别</td><td>模型</td><td>抽取游戏名 / 类型 / 偏好风格 / 出行三要素</td></tr>
+          <tr><td>知识检索</td><td>模型 + 知识库</td><td>模型执行匹配动作，映射关系由知识库提供，<b>不得自行发明映射</b></td></tr>
+          <tr><td>需求补全</td><td>模型</td><td>缺失信息必须追问，不猜</td></tr>
+          <tr><td>工具编排</td><td>模型</td><td>决定调用哪些 flyai 命令、什么参数、什么顺序</td></tr>
+          <tr><td><b>数据真伪</b></td><td><b>工具（飞猪）</b></td><td><b>价格 / 场次 / 车次 / 链接一律以工具返回为准，模型不得估算或补写</b></td></tr>
+          <tr><td>推荐逻辑解释</td><td>模型</td><td>解释「为什么推荐 A 而非 B」，这是模型的价值所在</td></tr>
+          <tr><td>失败兜底</td><td>模型 + 提示词约束</td><td>工具返回为空时必须走三套预案，<b>禁止编造</b></td></tr>
+          <tr><td>下单支付</td><td>用户</td><td>智能体只提供跳转链接，不代下单、不代支付</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- 8 边界 -->
+<section id="bound">
+  <div class="wrap">
+    <h2><span class="n">8</span>边界与已知不足</h2>
+    <p class="sub">主动说明边界，比假装全能更可靠。</p>
+
+    <div class="bnd">
+      <div class="bt"><i></i>知识库不是全量游戏库</div>
+      <p>目前精确映射约 24 款游戏 + 8 类风格兜底。市面游戏数以万计，未收录的游戏会走第二 / 三级兜底，<b>兜底结果的相关性必然低于精确映射</b>。</p>
+    </div>
+    <div class="bnd">
+      <div class="bt"><i></i>映射范围被飞猪供给覆盖度限制</div>
+      <p>扩展规则要求「映射目的地必须能被 flyai 查到真实数据」，这保证了可预订性，但也意味着飞猪供给薄弱的城市，即使旅行体验很契合，也不会被映射进去。</p>
+    </div>
+    <div class="bnd">
+      <div class="bt"><i></i>价格与场次随查询日期浮动</div>
+      <p>页面展示的均为查询当时的快照，最终以飞猪预订页为准。演示中的「本周末无成都体育赛事」是 2026-10-15 的真实返回，<b>换个周末可能就有赛事</b>。</p>
+    </div>
+    <div class="bnd">
+      <div class="bt"><i></i>不做预订、不做支付</div>
+      <p>只提供飞猪跳转链接，下单支付由用户在飞猪 App 完成。不做实时余票锁定，「有票」仅代表查询时刻的状态。</p>
+    </div>
+    <div class="bnd">
+      <div class="bt"><i></i>交付形态为智能体配置，不是独立代码仓库</div>
+      <p>复现方式是在百炼控制台创建智能体并注入 <code>FLYAI_API_KEY</code>。本页与仓库截图 / 验证报告是永久留存证据；百炼会话受状态机管理，归档后为 <code>terminated</code> 终态、不能再交互。</p>
+    </div>
+    <div class="bnd">
+      <div class="bt"><i></i>目前没有自动化测试</div>
+      <p>真实数据链路的正确性靠人工对话验证 + 逐条核对工具返回来保证，而非单元测试。这是明确认知的短板。</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="links">
+      <a href="https://github.com/AKADONG8/youxia-travel-agent">GitHub 仓库</a>
+      <a href="https://github.com/AKADONG8/youxia-travel-agent/blob/main/demo/verification-report.md">验证报告</a>
+      <a href="https://github.com/AKADONG8/youxia-travel-agent/blob/main/demo/session-transcript.md">逐幕完整记录</a>
+      <a href="https://github.com/AKADONG8/youxia-travel-agent/blob/main/prompts/system-prompt.md">系统提示词</a>
+      <a href="https://github.com/AKADONG8/youxia-travel-agent/blob/main/knowledge/game-taste-map.md">游戏口味地图</a>
+    </div>
+    <div class="fine">
+      <b style="color:#9ca3af">2026 飞猪 AI 旅行创新大赛参赛作品</b> · 团队：游侠出行 · 作者：AKADONG8（单人参赛）<br>
+      智能体运行于阿里云百炼 Managed Agent，数据来自飞猪官方 flyai-skill。页面所有价格 / 车次 / 场次均为 2026-10-15 查询快照，最终以飞猪预订页为准。<br>
+      本项目不含任何 API Key 等敏感信息。
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

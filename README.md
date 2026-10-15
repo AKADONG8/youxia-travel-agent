@@ -9,6 +9,7 @@
 - 数据源：飞猪官方 `flyai-skill`（8 类查询能力）
 - 形态：系统提示词工程 + 自建知识库（「游戏口味地图」）+ 真实数据编排
 - 验证状态：强化版故事线 B **全链路跑通，flyai 技能全部返回真实数据，无虚构**
+- 在线展示页：[`showcase/index.html`](showcase/index.html)（部署后可公开访问，见第十一节）
 
 ---
 
@@ -307,16 +308,21 @@ youxia-travel-agent/
 ├── LICENSE                            # MIT
 ├── .env.example                       # FLYAI_API_KEY 模板（不含真实 Key）
 ├── .gitignore
+├── .nojekyll                          # GitHub Pages 用
+├── showcase/
+│   └── index.html                     # ★ 在线展示页（单文件，GitHub Pages 部署）
 ├── prompts/
 │   └── system-prompt.md               # 「游侠出行」系统提示词（v6）
 ├── knowledge/
 │   └── game-taste-map.md              # 「游戏口味地图」知识库（三级匹配 + 扩展规则）
 ├── demo/
+│   ├── session-transcript.md          # ★ 逐幕完整记录（故事线B 强化版）
 │   ├── story-b-enhanced.md            # 演示脚本 · 故事线B 强化版（体验意图与兜底）★主推
 │   ├── story-b-small-indie.md         # 演示脚本 · 故事线B 小众玩家电竞兜底
 │   ├── story-a-lol.md                 # 演示脚本 · 故事线A LOL玩家成都电竞观赛
 │   ├── story-a-genshin.md             # 演示脚本 · 故事线A 原神玩家成都观演
-│   └── verification-report.md         # 百炼 Dong8 真实对话验证报告（含数据真实性逐条核验）
+│   ├── verification-report.md         # 百炼 Dong8 真实对话验证报告（含数据真实性逐条核验）
+│   └── video-script.md                # 演示视频逐字旁白稿（2 分 30 秒分镜）
 ├── screenshots/
 │   ├── 01-opening.png                 # 第0幕 开场
 │   ├── 02-transport-hotel.png         # 第1幕 挖掘需求与交通住宿
@@ -331,6 +337,29 @@ youxia-travel-agent/
     ├── architecture.md                # 架构与职责边界
     └── pitfalls.md                    # 踩坑记录（本文件第八节的完整版）
 ```
+
+---
+
+## 十一、在线展示页
+
+仓库内置一个**单文件静态展示页**，用浏览器打开 `showcase/index.html` 即可，无需任何依赖：
+
+- 项目定位与差异化对照（通用攻略 vs 游侠出行）
+- 「游戏口味地图」五大类目可视化 + 三级匹配机制图
+- 五步组队法流程
+- 7 幕真实运行截图
+- 数据真实性核验表
+- 架构图与职责边界表
+- 边界与已知不足
+
+**部署为公开页面**（GitHub Pages，约 1 分钟）：
+
+1. 推送仓库后，进入仓库 `Settings` → `Pages`
+2. `Source` 选择 `Deploy from a branch`
+3. `Branch` 选择 `main`，目录选择 `/ (root)`，保存
+4. 等待 1–2 分钟，访问 `https://akadong8.github.io/youxia-travel-agent/showcase/`
+
+> 仓库已包含 `.nojekyll`，避免 Jekyll 处理静态资源。
 
 ---
 
