@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>游侠出行 · 游戏口味地图 在线查询器</title>
+<meta name="description" content="输入你玩的游戏，实时看到「游戏口味地图」知识库的三级匹配结果。纯前端运行，不调用模型与实时数据。">
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#fff; --ink:#16191d; --ink2:#4b5158; --ink3:#8a919a;
+    --line:#e4e7eb; --line2:#eff1f4;
+    --blue:#2563eb; --blue-bg:#eff4ff; --blue-d:#1d4ed8;
+    --green:#0f9d58; --green-bg:#eaf7f0;
+    --amber:#d97706; --amber-bg:#fdf5e6;
+    --purple:#7c3aed; --purple-bg:#f4f0ff;
+    --gray:#6b7280; --gray-bg:#f3f4f6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;font-size:15.5px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:900px;margin:0 auto;padding:0 20px 70px}
+
+  header{background:linear-gradient(135deg,#0f2557,#1d4ed8 55%,#3b82f6);color:#fff;padding:40px 0 34px}
+  header .wrap{padding-bottom:0}
+  .kicker{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.5px;
+    background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);
+    padding:4px 12px;border-radius:20px;margin-bottom:14px}
+  header h1{margin:0 0 10px;font-size:27px;font-weight:800;letter-spacing:-.5px}
+  header p{margin:0;font-size:15px;opacity:.9}
+  header .navlink{display:inline-block;margin-top:16px;font-size:13.5px;color:#fff;
+    background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.24);
+    padding:6px 14px;border-radius:9px;text-decoration:none}
+  header .navlink:hover{background:rgba(255,255,255,.22)}
+
+  .notice{margin:22px 0 0;background:#fff8e6;border:1px solid #f5e0b0;border-radius:12px;
+    padding:14px 18px;font-size:13.8px;color:#7c4a03;line-height:1.75}
+  .notice b{font-weight:800}
+
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:15px;
+    padding:22px 24px;box-shadow:0 1px 3px rgba(16,24,40,.05);margin-top:18px}
+  .panel h2{margin:0 0 4px;font-size:18px;font-weight:800;letter-spacing:-.2px}
+  .panel .hint{margin:0 0 16px;font-size:13.5px;color:var(--ink3)}
+
+  .inputrow{display:flex;gap:10px;flex-wrap:wrap}
+  .inputrow input{flex:1;min-width:220px;font-size:16px;padding:13px 16px;border-radius:11px;
+    border:1.5px solid var(--line);outline:none;font-family:inherit;transition:.15s;background:#fcfcfd}
+  .inputrow input:focus{border-color:var(--blue);background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+  .inputrow button{font-size:15.5px;font-weight:700;padding:13px 26px;border-radius:11px;border:none;
+    background:var(--blue);color:#fff;cursor:pointer;transition:.15s;font-family:inherit}
+  .inputrow button:hover{background:var(--blue-d)}
+  .inputrow button:active{transform:translateY(1px)}
+
+  .chips{margin-top:14px;display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+  .chips .lbl{font-size:12.5px;color:var(--ink3);margin-right:3px}
+  .chip{font-size:13px;padding:5px 12px;border-radius:20px;background:var(--gray-bg);
+    border:1px solid var(--line);cursor:pointer;color:var(--ink2);transition:.13s;font-family:inherit}
+  .chip:hover{background:var(--blue-bg);border-color:#c7d2fe;color:var(--blue-d)}
+
+  /* 三级路径 */
+  .path{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:20px}
+  @media(max-width:680px){.path{grid-template-columns:1fr}}
+  .lv{border:1.5px solid var(--line);border-radius:11px;padding:13px 15px;background:#fcfcfd;transition:.2s}
+  .lv .t{font-size:12px;font-weight:800;letter-spacing:.4px;color:var(--ink3);margin-bottom:4px}
+  .lv .d{font-size:12.5px;color:var(--ink3);line-height:1.6}
+  .lv.hit{border-color:var(--green);background:var(--green-bg);box-shadow:0 0 0 3px rgba(15,157,88,.1)}
+  .lv.hit .t{color:#0b7a44} .lv.hit .d{color:#166534}
+  .lv.miss{opacity:.5}
+  .lv.warn{border-color:var(--amber);background:var(--amber-bg)}
+  .lv.warn .t{color:#92400e} .lv.warn .d{color:#a16207}
+
+  /* 结果 */
+  #result{margin-top:20px}
+  .rcard{border:1px solid var(--line);border-radius:13px;padding:18px 20px;margin-bottom:12px;background:#fff;
+    box-shadow:0 1px 3px rgba(16,24,40,.05)}
+  .rcard .top{display:flex;flex-wrap:wrap;align-items:baseline;gap:9px;margin-bottom:11px}
+  .rcard .cat{font-size:12px;font-weight:800;padding:3px 9px;border-radius:6px;background:var(--purple-bg);color:var(--purple)}
+  .rcard .gname{font-size:17px;font-weight:800}
+  .rcard .tag{font-size:12.5px;padding:3px 9px;border-radius:6px;background:var(--blue-bg);color:var(--blue-d);font-weight:700}
+  .mgroup{margin-bottom:11px}
+  .mgroup:last-child{margin-bottom:0}
+  .mgroup .gl{font-size:12.5px;font-weight:700;color:var(--ink3);margin-bottom:6px}
+  .mitems{display:flex;flex-wrap:wrap;gap:7px}
+  .mi{font-size:13.5px;padding:6px 13px;border-radius:9px;background:var(--green-bg);color:#0b6b3a;
+    border:1px solid #bbf7d0;font-weight:600}
+  .mi.generic{background:var(--gray-bg);color:var(--ink2);border-color:var(--line);font-weight:400}
+
+  .empty{text-align:center;padding:26px 20px;color:var(--ink3);font-size:14px}
+  .ask{background:var(--amber-bg);border:1px solid #f5e0b0;border-radius:12px;padding:18px 20px;
+    font-size:14.5px;color:#7c4a03;line-height:1.8}
+  .ask b{font-weight:800}
+
+  .fbopts{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .fb{font-size:13.5px;padding:8px 15px;border-radius:10px;background:#fff;border:1.5px solid var(--line);
+    cursor:pointer;color:var(--ink2);transition:.13s;font-family:inherit}
+  .fb:hover{border-color:var(--amber);background:var(--amber-bg);color:#92400e}
+
+  details{margin-top:18px;border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}
+  summary{padding:14px 20px;font-size:14.5px;font-weight:700;cursor:pointer;list-style:none;
+    display:flex;justify-content:space-between;align-items:center;color:var(--ink2)}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"▾";font-size:13px;color:var(--ink3);transition:.2s}
+  details[open] summary::after{transform:rotate(180deg)}
+  details .body{padding:0 20px 18px;border-top:1px solid var(--line2)}
+  .browse{margin-top:14px}
+  .browse .bcat{font-size:13px;font-weight:800;color:var(--ink3);margin:16px 0 8px;letter-spacing:.3px}
+  .browse .brow{font-size:13.5px;padding:9px 0;border-bottom:1px solid var(--line2);display:flex;gap:12px;flex-wrap:wrap}
+  .browse .brow:last-child{border-bottom:none}
+  .browse .bg{font-weight:700;min-width:150px;color:var(--ink)}
+  .browse .bt{color:var(--ink3);font-size:12.5px;min-width:110px}
+  .browse .bm{color:var(--ink2);flex:1;min-width:200px}
+
+  footer{margin-top:34px;padding-top:20px;border-top:1px solid var(--line);
+    font-size:12.5px;color:var(--ink3);line-height:1.9}
+  footer a{color:var(--blue);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+  .stat{display:inline-block;font-size:12px;background:var(--gray-bg);border-radius:6px;
+    padding:2px 8px;color:var(--ink2);margin-right:6px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <span class="kicker">2026 飞猪 AI 旅行创新大赛 · 游侠出行</span>
+    <h1>游戏口味地图 · 在线查询器</h1>
+    <p>输入你玩的游戏，看看它会被翻译成什么样的旅行体验。</p>
+    <a class="navlink" href="./index.html">← 返回项目展示页</a>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="notice">
+    <b>先说清楚这个页面是什么、不是什么。</b><br>
+    这是一个<b>纯前端</b>的知识库查询器，数据直接来自仓库里的
+    <a href="https://github.com/AKADONG8/youxia-travel-agent/blob/main/knowledge/game-taste-map.md" style="color:#8a5a00">游戏口味地图</a>，
+    <b>在你的浏览器里跑，不调用大模型、不调飞猪实时数据、不需要任何 Key</b>。
+    它演示的是「游戏口味 → 旅行体验」的<b>映射层</b>；完整的智能体（会调飞猪查真实价格与车次）
+    运行在阿里云百炼上，见<a href="./index.html" style="color:#8a5a00">展示页</a>与
+    <a href="https://github.com/AKADONG8/youxia-travel-agent/blob/main/demo/session-transcript.md" style="color:#8a5a00">逐幕记录</a>。
+  </div>
+
+  <div class="panel">
+    <h2>输入你玩的游戏</h2>
+    <p class="hint">支持主流游戏精确匹配；冷门游戏会走「类型 / 风格兜底」；再不行会反问你一句。</p>
+
+    <div class="inputrow">
+      <input id="q" type="text" placeholder="例如：原神 / 黑神话：悟空 / 我玩一个像素风独立游戏" autocomplete="off">
+      <button id="go">查询</button>
+    </div>
+
+    <div class="chips">
+      <span class="lbl">试试：</span>
+      <button class="chip" data-q="原神">原神</button>
+      <button class="chip" data-q="英雄联盟">英雄联盟</button>
+      <button class="chip" data-q="黑神话：悟空">黑神话：悟空</button>
+      <button class="chip" data-q="星露谷物语">星露谷物语</button>
+      <button class="chip" data-q="CS2">CS2</button>
+      <button class="chip" data-q="塞尔达传说">塞尔达传说</button>
+      <button class="chip" data-q="明日方舟">明日方舟</button>
+      <button class="chip" data-q="像素风游戏">像素风游戏</button>
+      <button class="chip" data-q="随便一个你没听过的游戏">随便一个没听过的</button>
+    </div>
+
+    <div class="path" id="path">
+      <div class="lv" id="lv1">
+        <div class="t">第 ① 级 · 精确映射</div>
+        <div class="d">按游戏名匹配，30 款游戏 / 20 行映射</div>
+      </div>
+      <div class="lv" id="lv2">
+        <div class="t">第 ② 级 · 类型 / 风格兜底</div>
+        <div class="d">识别「像素风 / 剧情好 / 喜欢建造」等信号</div>
+      </div>
+      <div class="lv" id="lv3">
+        <div class="t">第 ③ 级 · 反问引导</div>
+        <div class="d">都不命中时反问你，不冷场也不硬猜</div>
+      </div>
+    </div>
+
+    <div id="result"></div>
+  </div>
+
+  <details>
+    <summary>浏览全部映射（<span id="kbstat"></span>）</summary>
+    <div class="body">
+      <div class="browse" id="browse"></div>
+    </div>
+  </details>
+
+  <footer>
+    <span class="stat" id="srcstat"></span><br><br>
+    数据来源：<code>knowledge/game-taste-map.md</code>，由
+    <code>scripts/build_playground.py</code> 生成并注入本页 —— 页面数据永远与知识库同步。<br>
+    页面内所有数据均为静态知识库内容，不含实时价格、余票或场次信息。真实数据需在百炼智能体中调用飞猪 flyai-skill 获取。<br>
+    <a href="./index.html">项目展示页</a> ·
+    <a href="https://github.com/AKADONG8/youxia-travel-agent">GitHub 仓库</a> ·
+    <a href="https://github.com/AKADONG8/youxia-travel-agent/blob/main/demo/session-transcript.md">逐幕完整记录</a>
+  </footer>
+
+</div>
+
+<script>
+const KB = {"source":"knowledge/game-taste-map.md","generated":"2026-10-16","categories":[{"name":"开放世界 / RPG 党","entries":[{"games":["原神","崩坏：星穹铁道"],"gamesRaw":"原神 / 崩坏：星穹铁道","tag":"开放世界·二次元","mapping":[{"label":null,"items":["张家界","黄龙","九寨沟"]},{"label":null,"items":["泛二次元主题店"]}]},{"games":["塞尔达传说"],"gamesRaw":"塞尔达传说","tag":"开放世界·冒险","mapping":[{"label":null,"items":["桂林山水","喀斯特地貌","野外露营体验"]}]},{"games":["艾尔登法环","黑魂"],"gamesRaw":"艾尔登法环 / 黑魂","tag":"魂系·中世纪","mapping":[{"label":null,"items":["古城墙","古镇","历史古迹徒步"]},{"label":"括号补充","items":["平遥","凤凰"]}]},{"games":["荒野大镖客2"],"gamesRaw":"荒野大镖客2","tag":"西部·开放世界","mapping":[{"label":null,"items":["西北戈壁","草原骑马","荒漠公路旅行"]}]},{"games":["刺客信条"],"gamesRaw":"刺客信条","tag":"历史·开放世界","mapping":[{"label":null,"items":["历史文化名城","古迹沉浸游"]},{"label":"括号补充","items":["西安","南京"]}]}]},{"name":"3A 单机 / 剧情党","entries":[{"games":["黑神话：悟空"],"gamesRaw":"黑神话：悟空","tag":"国产3A·西游神话","mapping":[{"label":"山西古建朝圣","items":["悬空寺","应县木塔","晋祠","云冈石窟"]}]},{"games":["赛博朋克2077"],"gamesRaw":"赛博朋克2077","tag":"赛博朋克·科幻","mapping":[{"label":null,"items":["重庆洪崖洞夜景","上海陆家嘴","霓虹夜景城市巡游"]}]},{"games":["巫师3","上古卷轴"],"gamesRaw":"巫师3 / 上古卷轴","tag":"奇幻·开放世界","mapping":[{"label":null,"items":["欧洲风情小镇","雪山度假","中世纪主题体验"]}]},{"games":["底特律","暴雨"],"gamesRaw":"底特律 / 暴雨","tag":"剧情·互动电影","mapping":[{"label":null,"items":["现代都市漫步","影视取景地打卡"]}]}]},{"name":"竞技 / MOBA / FPS 党","entries":[{"games":["英雄联盟（LOL）"],"gamesRaw":"英雄联盟（LOL）","tag":"MOBA·电竞","mapping":[{"label":null,"items":["LPL 线下赛观赛","电竞主题酒店","赛事城市周边游"]}]},{"games":["王者荣耀"],"gamesRaw":"王者荣耀","tag":"MOBA·手游电竞","mapping":[{"label":null,"items":["KPL 线下观赛","电竞馆","战队城市打卡"]}]},{"games":["无畏契约（瓦）"],"gamesRaw":"无畏契约（瓦）","tag":"FPS·电竞","mapping":[{"label":null,"items":["VCT 赛事观赛","电竞网咖体验"]}]},{"games":["CS2","绝地求生"],"gamesRaw":"CS2 / 绝地求生","tag":"FPS·战术","mapping":[{"label":null,"items":["电竞馆","射击体验馆","城市电竞活动"]}]}]},{"name":"二次元 / 抽卡党","entries":[{"games":["明日方舟","碧蓝航线"],"gamesRaw":"明日方舟 / 碧蓝航线","tag":"二次元·塔防","mapping":[{"label":null,"items":["漫展","ACG 主题咖啡厅","谷子店巡礼"]},{"label":"括号补充","items":["CP","萤火虫"]}]},{"games":["少女前线","崩坏3"],"gamesRaw":"少女前线 / 崩坏3","tag":"二次元·动作","mapping":[{"label":null,"items":["二次元主题街区","圣地巡礼","角色联动快闪店"]}]},{"games":["初音未来","音游"],"gamesRaw":"初音未来 / 音游","tag":"二次元·音游","mapping":[{"label":null,"items":["音乐节","Live 演出","ACG 演唱会"]}]}]},{"name":"休闲 / 模拟经营党","entries":[{"games":["星露谷物语","牧场物语"],"gamesRaw":"星露谷物语 / 牧场物语","tag":"模拟经营·田园","mapping":[{"label":null,"items":["田园民宿","农家乐","采摘园","乡村度假"]}]},{"games":["我的世界"],"gamesRaw":"我的世界","tag":"沙盒·建造","mapping":[{"label":null,"items":["创意园区","乐高乐园","DIY 工坊","积木主题馆"]}]},{"games":["动物森友会"],"gamesRaw":"动物森友会","tag":"休闲·治愈","mapping":[{"label":null,"items":["海岛度假","自然疗愈","主题民宿"]}]},{"games":["双人成行","分手厨房"],"gamesRaw":"双人成行 / 分手厨房","tag":"合作·派对","mapping":[{"label":"双人项目","items":["主题乐园","密室逃脱","温泉双人游"]}]}]}],"fallback":[{"desc":"像素风游戏","signal":"像素/复古","items":["老街区","复古咖啡馆","旧物市场","独立书店"]},{"desc":"剧情很好","signal":"剧情/叙事","items":["文艺目的地","博物馆","历史街区","沉浸式剧场"]},{"desc":"喜欢建造","signal":"建造/沙盒","items":["创意园","工坊","乐高","积木主题馆"]},{"desc":"喜欢种田/农场","signal":"农场/模拟","items":["田园民宿","农家乐","生态园"]},{"desc":"喜欢恐怖/解谜","signal":"恐怖/解谜","items":["密室逃脱","鬼屋体验","悬疑主题文旅"]},{"desc":"喜欢音乐节奏","signal":"音游/音乐","items":["音乐节","Livehouse","乐器体验馆"]},{"desc":"喜欢赛车","signal":"竞速/赛车","items":["卡丁车场","赛车主题乐园","赛道体验"]},{"desc":"喜欢体育类","signal":"体育/运动","items":["体育赛事观赛","运动主题乐园","户外运动基地"]}],"extras":["常玩原神 → \"老板，张家界璃月原型线路了解一下？\"","常看 LPL → \"下周 LPL 总决赛开票了，安排一波观赛远征？\"","二次元浓度高 → \"最近成都 CP 漫展要来，周边谷子店地图需要吗？\""]};
+
+/* ---------------- 工具 ---------------- */
+const norm = s => (s || "").toLowerCase().replace(/\s+/g, "");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+// 泛化描述词：这些词不该被当成"具体地名"
+const GENERIC = ["体验","打卡","漫步","巡游","巡礼","观赛","度假","民宿","咖啡","工坊","乐园","街区","市场","书店","剧场","馆","园","小镇","露营","骑马","徒步","朝圣","周边游","主题店","快闪店","演出","音乐节","漫展","网咖","密室","温泉","采摘","农家乐","生态园","创意园","雪山","古城墙","古镇","古迹","喀斯特","海岛","疗愈","赛道","卡丁车","赛车","戈壁","旅游","游玩","活动","酒店","场馆","演唱会","旅行","名城","地貌"];
+const isGeneric = it => GENERIC.some(w => it.includes(w));
+
+/* ---------------- 三级匹配 ---------------- */
+function matchL1(q) {
+  const nq = norm(q);
+  if (nq.length < 1) return [];
+  const hits = [];
+  KB.categories.forEach(cat => cat.entries.forEach(e => {
+    e.games.forEach(g => {
+      const ng = norm(g);
+      if (!ng) return;
+      if (ng === nq || (ng.length >= 2 && nq.includes(ng)) || (nq.length >= 2 && ng.includes(nq))) {
+        if (!hits.some(h => h.entry === e)) hits.push({ cat: cat.name, entry: e, game: g });
+      }
+    });
+  }));
+  return hits;
+}
+
+function matchL2(q) {
+  const nq = norm(q);
+  if (!nq) return [];
+  return KB.fallback.filter(f => {
+    const keys = [f.desc, f.signal].concat(f.items);
+    return keys.some(k => {
+      const nk = norm(k);
+      if (!nk) return false;
+      return (nk.length >= 2 && nq.includes(nk)) || (nq.length >= 2 && nk.includes(nq));
+    });
+  });
+}
+
+/* ---------------- 渲染 ---------------- */
+function renderMapping(groups) {
+  return groups.map(g => `
+    <div class="mgroup">
+      ${g.label ? `<div class="gl">${esc(g.label)}</div>` : ""}
+      <div class="mitems">${g.items.map(i =>
+        `<span class="mi${isGeneric(i) ? " generic" : ""}">${esc(i)}</span>`).join("")}</div>
+    </div>`).join("");
+}
+
+function setPath(state) { // 1 | 2 | 3
+  ["lv1", "lv2", "lv3"].forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.className = "lv";
+    if (i + 1 === state) el.classList.add(state === 3 ? "warn" : "hit");
+    else if (i + 1 < state) el.classList.add("miss");
+  });
+}
+
+function query(raw) {
+  const q = (raw || "").trim();
+  const res = document.getElementById("result");
+  if (!q) { res.innerHTML = `<div class="empty">先输入一个游戏名吧。</div>`; setPath(0); return; }
+
+  const l1 = matchL1(q);
+  if (l1.length) {
+    setPath(1);
+    res.innerHTML = l1.map(h => `
+      <div class="rcard">
+        <div class="top">
+          <span class="cat">${esc(h.cat)}</span>
+          <span class="gname">${esc(h.game)}</span>
+          <span class="tag">${esc(h.entry.tag)}</span>
+        </div>
+        ${renderMapping(h.entry.mapping)}
+      </div>`).join("") +
+      `<div class="empty" style="padding:10px 0;font-size:13px">命中第 ① 级：按游戏名精确映射，无需兜底。</div>`;
+    return;
+  }
+
+  const l2 = matchL2(q);
+  if (l2.length) {
+    setPath(2);
+    res.innerHTML = l2.map(f => `
+      <div class="rcard">
+        <div class="top">
+          <span class="cat" style="background:#fef3c7;color:#92400e">第 ② 级 · 风格兜底</span>
+          <span class="gname">${esc(f.desc)}</span>
+          <span class="tag" style="background:#fef3c7;color:#92400e">信号：${esc(f.signal)}</span>
+        </div>
+        <div class="mitems">${f.items.map(i =>
+          `<span class="mi${isGeneric(i) ? " generic" : ""}">${esc(i)}</span>`).join("")}</div>
+      </div>`).join("") +
+      `<div class="empty" style="padding:10px 0;font-size:13px">没有精确映射到这款游戏，走的是第 ② 级风格兜底 —— 这正是小众游戏玩家的正常路径。</div>`;
+    return;
+  }
+
+  // 第 ③ 级：反问
+  setPath(3);
+  res.innerHTML = `
+    <div class="ask">
+      <b>「${esc(q)}」我这儿没有收录。</b><br>
+      不硬猜 —— 这是第 ③ 级：反问你一句，把你拉回我能识别的区间。<br><br>
+      <b>你玩游戏时最看重下面哪种感觉？</b>
+      <div class="fbopts">
+        ${KB.fallback.map((f, i) => `<button class="fb" data-i="${i}">${esc(f.signal)}</button>`).join("")}
+      </div>
+    </div>`;
+  res.querySelectorAll(".fb").forEach(b => b.onclick = () => {
+    const f = KB.fallback[+b.dataset.i];
+    setPath(2);
+    res.innerHTML = `
+      <div class="rcard">
+        <div class="top">
+          <span class="cat" style="background:#fef3c7;color:#92400e">第 ② 级 · 风格兜底</span>
+          <span class="gname">${esc(f.desc)}</span>
+          <span class="tag" style="background:#fef3c7;color:#92400e">信号：${esc(f.signal)}</span>
+        </div>
+        <div class="mitems">${f.items.map(i =>
+          `<span class="mi${isGeneric(i) ? " generic" : ""}">${esc(i)}</span>`).join("")}</div>
+      </div>
+      <div class="empty" style="padding:10px 0;font-size:13px">
+        第 ③ 级反问生效：从「${esc(q)}」收敛到「${esc(f.signal)}」，拿到了可执行的推荐方向。
+      </div>`;
+  });
+}
+
+/* ---------------- 初始化 ---------------- */
+document.getElementById("go").onclick = () => query(document.getElementById("q").value);
+document.getElementById("q").addEventListener("keydown", e => { if (e.key === "Enter") query(e.target.value); });
+document.querySelectorAll(".chip").forEach(c => c.onclick = () => {
+  document.getElementById("q").value = c.dataset.q;
+  query(c.dataset.q);
+});
+
+// 浏览全部
+(function () {
+  const b = document.getElementById("browse");
+  let html = "";
+  KB.categories.forEach(cat => {
+    html += `<div class="bcat">${esc(cat.name)}</div>`;
+    cat.entries.forEach(e => {
+      const mapping = e.mapping.map(g => (g.label ? g.label + "：" : "") + g.items.join("、")).join("；");
+      html += `<div class="brow">
+        <div class="bg">${esc(e.gamesRaw)}</div>
+        <div class="bt">${esc(e.tag)}</div>
+        <div class="bm">${esc(mapping)}</div>
+      </div>`;
+    });
+  });
+  html += `<div class="bcat">小众游戏兜底规则</div>`;
+  KB.fallback.forEach(f => {
+    html += `<div class="brow">
+      <div class="bg">${esc(f.desc)}</div>
+      <div class="bt">${esc(f.signal)}</div>
+      <div class="bm">${esc(f.items.join("、"))}</div>
+    </div>`;
+  });
+  b.innerHTML = html;
+
+  const nEntries = KB.categories.reduce((s, c) => s + c.entries.length, 0);
+  document.getElementById("kbstat").textContent =
+    `${KB.categories.length} 类目 · ${nEntries} 款游戏 · ${KB.fallback.length} 条兜底规则`;
+  document.getElementById("srcstat").textContent =
+    `知识库生成于 ${KB.generated} · 数据源 ${KB.source}`;
+})();
+</script>
+</body>
+</html>

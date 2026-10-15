@@ -2,11 +2,12 @@
 
 **先说清楚一件事**：本项目的**运行时主体不是代码**，而是「系统提示词 + 知识库」跑在阿里云百炼 Managed Agent 上。
 
-这里放的不是"作品本体的源码"，而是**围绕作品本体的两个辅助脚本**。写它们的原因很具体：把文档里的承诺变成可执行的检查。
+这里放的不是"作品本体的源码"，而是**围绕作品本体的三个辅助脚本**。写它们的原因很具体：把文档里的承诺变成可执行的检查，以及让页面数据永远与知识库同步。
 
 | 脚本 | 解决什么问题 | 是否在运行时链路 |
 |---|---|---|
 | `verify_knowledge_base.py` | 知识库的「扩展规则」写了「映射目的地必须能被 flyai 查到真实数据」——只写在文档里就是口号。这个脚本把它变成可核对的清单 | ❌ 不在。开发/维护期工具 |
+| `build_playground.py` | 从知识库生成 [`../showcase/playground.html`](../showcase/playground.html) 的数据，保证**在线查询器的内容永远与知识库同步**，不会两边各写一份 | ❌ 不在。构建期工具 |
 | `demo_queries.sh` | 演示中用到的 flyai 查询原样列出，任何人可在本地跑一遍核对数据真伪 | ❌ 不在。复现/核验工具 |
 
 **运行时真正在跑的东西**是：
@@ -51,6 +52,19 @@ bash scripts/demo_queries.sh 4
 ```
 
 **注意**：飞猪有 QPS 限制与行为风控，**不要改成循环刷**，否则会触发 HTTP 451。脚本已在每条命令之间加了 3 秒间隔。
+
+## build_playground.py
+
+从知识库生成在线查询器的数据，注入 HTML 模板。
+
+```bash
+python3 scripts/build_playground.py
+```
+
+- 输入：[`../knowledge/game-taste-map.md`](../knowledge/game-taste-map.md) + [`../showcase/playground.template.html`](../showcase/playground.template.html)
+- 输出：[`../showcase/playground.html`](../showcase/playground.html)（生成物，已提交）
+
+**为什么要有这一步**：查询器查的是知识库的数据。如果手写一份数据进 HTML，知识库一改两边就不同步了。用脚本生成，**页面数据永远来自知识库本身**。改完知识库跑一次即可。
 
 ---
 

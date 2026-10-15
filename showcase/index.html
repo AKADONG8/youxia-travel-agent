@@ -181,6 +181,21 @@
       <span>自建「游戏口味地图」知识库</span>
       <span>两次真实兜底已实测</span>
     </div>
+    <div style="margin-top:22px;display:flex;gap:12px;flex-wrap:wrap">
+      <a href="./playground.html" style="display:inline-flex;align-items:center;gap:8px;background:#fff;color:#1d4ed8;
+         font-weight:800;font-size:15px;padding:12px 24px;border-radius:11px;text-decoration:none;
+         box-shadow:0 4px 14px rgba(0,0,0,.18)">
+        ▶ 打开在线查询器（可交互）
+      </a>
+      <a href="#demo" style="display:inline-flex;align-items:center;background:rgba(255,255,255,.16);
+         border:1px solid rgba(255,255,255,.3);color:#fff;font-weight:700;font-size:15px;
+         padding:12px 22px;border-radius:11px;text-decoration:none">
+        看逐幕真实记录
+      </a>
+    </div>
+    <p style="margin:14px 0 0;font-size:13px;opacity:.82">
+      查询器是纯前端的知识库映射层，不需要 Key、不调用模型；完整的智能体（会查飞猪实时数据）见逐幕记录。
+    </p>
   </div>
 </header>
 
@@ -252,7 +267,7 @@
 <section id="map">
   <div class="wrap">
     <h2><span class="n">3</span>「游戏口味地图」知识库</h2>
-    <p class="sub">本项目不是提示词堆砌，是一份可扩展的知识工程。覆盖 5 大类目、约 24 款游戏。</p>
+    <p class="sub">本项目不是提示词堆砌，是一份可扩展的知识工程。覆盖 5 大类目、30 款游戏、20 行映射。</p>
 
     <div class="taste">
       <div class="tcard">
@@ -326,7 +341,7 @@
         <line x1="340" y1="46" x2="340" y2="66" stroke="#8a919a" stroke-width="1.5" marker-end="url(#ar)"/>
 
         <rect x="150" y="68" width="380" height="34" rx="9" fill="#eef2ff" stroke="#c7d2fe"/>
-        <text x="340" y="90" font-size="13" fill="#3730a3" text-anchor="middle" font-weight="700">① 提到具体游戏名？→ 精确映射（约 24 款 · 5 大类目）</text>
+        <text x="340" y="90" font-size="13" fill="#3730a3" text-anchor="middle" font-weight="700">① 提到具体游戏名？→ 精确映射（30 款 · 5 大类目）</text>
         <line x1="340" y1="102" x2="340" y2="120" stroke="#8a919a" stroke-width="1.5" marker-end="url(#ar)"/>
         <text x="352" y="117" font-size="11.5" fill="#8a919a">未命中</text>
 
@@ -356,6 +371,20 @@
         右侧那条硬约束是本项目主动设的：<b>知识库不允许映射到飞猪查不到的地方</b>。
         这保证产出的每一条推荐都是「可预订的」，而不是「灵感建议」。
       </p>
+    </div>
+
+    <div class="card" style="margin-top:16px;display:flex;flex-wrap:wrap;align-items:center;gap:18px;
+         background:linear-gradient(135deg,#eff4ff,#fff);border-color:#c7d2fe">
+      <div style="flex:1;min-width:260px">
+        <div style="font-size:16px;font-weight:800;margin-bottom:6px">🎮 想知道自己的游戏会被翻译成什么？</div>
+        <p style="margin:0;font-size:14px;color:var(--ink2)">
+          在线查询器可以输入任意游戏名，实时看到三级匹配的完整过程——命中的是哪一级、为什么走兜底、兜底给了什么方向。
+          <b>纯前端运行，不需要 Key，不调用模型。</b>
+        </p>
+      </div>
+      <a href="./playground.html" style="flex:none;display:inline-block;background:var(--blue);color:#fff;
+         font-weight:800;font-size:15px;padding:13px 26px;border-radius:11px;text-decoration:none;
+         box-shadow:0 3px 10px rgba(37,99,235,.3)">打开查询器 →</a>
     </div>
   </div>
 </section>
@@ -608,7 +637,7 @@
 
     <div class="bnd">
       <div class="bt"><i></i>知识库不是全量游戏库</div>
-      <p>目前精确映射约 24 款游戏 + 8 类风格兜底。市面游戏数以万计，未收录的游戏会走第二 / 三级兜底，<b>兜底结果的相关性必然低于精确映射</b>。</p>
+      <p>目前精确映射 30 款游戏（20 行映射）+ 8 类风格兜底。市面游戏数以万计，未收录的游戏会走第二 / 三级兜底，<b>兜底结果的相关性必然低于精确映射</b>。</p>
     </div>
     <div class="bnd">
       <div class="bt"><i></i>映射范围被飞猪供给覆盖度限制</div>

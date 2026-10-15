@@ -11,16 +11,16 @@
 |---|---|
 | **做什么** | 面向游戏玩家的旅行助手。按你真正在玩的游戏理解体验偏好，产出可预订的旅程方案 |
 | **差异化** | 不做「游戏名 → 景点」对照表，而是**先识别体验意图，再翻译成行程** |
-| **核心资产** | 自建「游戏口味地图」知识库：5 大类目 / 约 24 款精确映射 + 8 条风格兜底 + 反问引导 |
+| **核心资产** | 自建「游戏口味地图」知识库：5 大类目 / 30 款游戏精确映射 + 8 条风格兜底 + 反问引导 |
 | **最硬的一条证据** | 用户问「有没有 Z587 这种 Z 字头直达」，智能体返回 Z333 / Z588 并**主动纠正「Z587 方向反了」**——价格若是编的，它不会去纠正用户给的车次号 |
 | **可验证性** | 系统提示词 + 知识库 + 4 套演示脚本 + 逐幕记录 + 数据核验表 + 9 张原始截图，全部在仓库内 |
-| **在线展示页** | [`showcase/index.html`](showcase/index.html)（部署步骤见第十一节） |
+| **在线体验** | [**在线查询器（可交互）**](showcase/playground.html) — 输入任意游戏名，实时看三级匹配过程 · [项目展示页](showcase/index.html) |
 
 - 智能体：阿里云百炼 Managed Agent `Dong8`（`agent_01M4XQ0NRHB5JSVRSD2K5SW1XW`，Qwen3.7-Plus）
 - 数据源：飞猪官方 `flyai-skill`（8 类查询能力）
 - 形态：系统提示词工程 + 自建知识库（「游戏口味地图」）+ 真实数据编排
 - 验证状态：强化版故事线 B **全链路跑通，flyai 技能全部返回真实数据，无虚构**
-- 在线展示页：[`showcase/index.html`](showcase/index.html)（部署后可公开访问，见第十一节）
+- 在线页面：[**在线查询器（可交互）**](showcase/playground.html) · [项目展示页](showcase/index.html)（部署后可公开访问，见第十节）
 
 ---
 
@@ -242,7 +242,7 @@ FLYAI_API_KEY=your_key_here
 主动说明边界，比假装全能更可靠。
 
 **知识库覆盖范围**
-- 「游戏口味地图」目前**精确映射约 24 款游戏**，按类型 / 风格兜底覆盖 8 类信号。它**不是全量游戏库**——市面上的游戏数以万计，未收录的游戏会走第二 / 三级兜底（类型匹配 → 反问引导），**兜底结果的相关性必然低于精确映射**。
+- 「游戏口味地图」目前**精确映射 30 款游戏**（5 大类目、20 行映射），按类型 / 风格兜底覆盖 8 类信号。它**不是全量游戏库**——市面上的游戏数以万计，未收录的游戏会走第二 / 三级兜底（类型匹配 → 反问引导），**兜底结果的相关性必然低于精确映射**。
 - 知识库的扩展规则要求"映射目的地必须能被 flyai 查到真实数据"，这保证了可预订性，但同时也**限制了映射范围**——飞猪供给薄弱的城市，即使旅行体验很契合，也不会被映射进去。
 
 **数据与时效**
@@ -321,11 +321,14 @@ youxia-travel-agent/
 ├── .gitignore
 ├── .nojekyll                          # GitHub Pages 用
 ├── scripts/
-│   ├── README.md                      # ★ 代码边界说明（为什么只放这两个脚本）
+│   ├── README.md                      # ★ 代码边界说明（为什么只放这几个脚本）
 │   ├── verify_knowledge_base.py       # 知识库校验：把硬约束变成可核对清单
+│   ├── build_playground.py            # 从知识库生成在线查询器的数据
 │   └── demo_queries.sh                # 演示数据复现命令
 ├── showcase/
-│   └── index.html                     # ★ 在线展示页（单文件，GitHub Pages 部署）
+│   ├── index.html                     # 项目展示页（单文件，GitHub Pages 部署）
+│   ├── playground.html                # ★ 在线查询器（可交互，生成物）
+│   └── playground.template.html       # 查询器模板（含 /*__KB_DATA__*/ 占位符）
 ├── prompts/
 │   └── system-prompt.md               # 「游侠出行」系统提示词（v6）
 ├── knowledge/
@@ -355,9 +358,23 @@ youxia-travel-agent/
 
 ---
 
-## 十、在线展示页
+## 十、在线页面
 
-仓库内置一个**单文件静态展示页**，用浏览器打开 `showcase/index.html` 即可，无需任何依赖：
+仓库内置**两个单文件页面**，浏览器直接打开即可，无需任何依赖、无需 Key：
+
+### 1. 在线查询器（可交互）· [`showcase/playground.html`](showcase/playground.html)
+
+输入任意游戏名，**实时看到三级匹配的完整过程**——命中的是哪一级、为什么走兜底、兜底给了什么方向。
+
+- 纯前端运行，**不调用大模型、不调飞猪实时数据、不需要任何 Key**
+- 数据由 [`scripts/build_playground.py`](scripts/build_playground.py) 从 `knowledge/game-taste-map.md` 生成并注入，**页面数据永远与知识库同步**
+- 演示的是「游戏口味 → 旅行体验」的**映射层**；完整的智能体运行在百炼上，见逐幕记录
+
+在线地址：https://akadong8.github.io/youxia-travel-agent/showcase/playground.html
+
+### 2. 项目展示页 · [`showcase/index.html`](showcase/index.html)
+
+一页看完项目全貌：
 
 - 项目定位与差异化对照（通用攻略 vs 游侠出行）
 - 「游戏口味地图」五大类目可视化 + 三级匹配机制图
@@ -367,7 +384,7 @@ youxia-travel-agent/
 - 架构图与职责边界表
 - 边界与已知不足
 
-**部署为公开页面**（GitHub Pages，约 1 分钟）：
+**部署为公开页面**（GitHub Pages）：
 
 1. 推送仓库后，进入仓库 `Settings` → `Pages`
 2. `Source` 选择 `Deploy from a branch`
@@ -375,6 +392,7 @@ youxia-travel-agent/
 4. 等待 1–2 分钟，访问 `https://akadong8.github.io/youxia-travel-agent/showcase/`
 
 > 仓库已包含 `.nojekyll`，避免 Jekyll 处理静态资源。
+> 查询器由脚本生成，改完知识库后跑一次 `python3 scripts/build_playground.py` 即可同步。
 
 ---
 
