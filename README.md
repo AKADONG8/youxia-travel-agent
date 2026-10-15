@@ -320,6 +320,10 @@ youxia-travel-agent/
 ├── .env.example                       # FLYAI_API_KEY 模板（不含真实 Key）
 ├── .gitignore
 ├── .nojekyll                          # GitHub Pages 用
+├── scripts/
+│   ├── README.md                      # ★ 代码边界说明（为什么只放这两个脚本）
+│   ├── verify_knowledge_base.py       # 知识库校验：把硬约束变成可核对清单
+│   └── demo_queries.sh                # 演示数据复现命令
 ├── showcase/
 │   └── index.html                     # ★ 在线展示页（单文件，GitHub Pages 部署）
 ├── prompts/
@@ -351,7 +355,7 @@ youxia-travel-agent/
 
 ---
 
-## 十一、在线展示页
+## 十、在线展示页
 
 仓库内置一个**单文件静态展示页**，用浏览器打开 `showcase/index.html` 即可，无需任何依赖：
 
@@ -374,7 +378,45 @@ youxia-travel-agent/
 
 ---
 
-## 十、作者
+## 十一、代码与脚本：边界说明
+
+**本项目的运行时主体不是代码，而是「系统提示词 + 知识库」跑在百炼 Managed Agent 上。** 这一点必须先说清楚。
+
+仓库里有代码，但只有两个**辅助脚本**，且都**不在运行时链路**：
+
+| 脚本 | 解决什么问题 | 是否运行时 |
+|---|---|---|
+| [`scripts/verify_knowledge_base.py`](scripts/verify_knowledge_base.py) | 把知识库「扩展规则」里那条硬约束（**映射目的地必须能被 flyai 查到真实数据**）从口号变成可核对的清单 | ❌ 维护期工具 |
+| [`scripts/demo_queries.sh`](scripts/demo_queries.sh) | 把演示用到的 flyai 查询原样列出，任何人可在本地跑一遍核对数据真伪 | ❌ 复现/核验工具 |
+
+```bash
+# 知识库校验（离线，不需要 Key）
+python3 scripts/verify_knowledge_base.py
+
+# 在线验证具体地名的飞猪可查性（需要 flyai CLI + FLYAI_API_KEY，已内置限速）
+python3 scripts/verify_knowledge_base.py --online --limit 10
+
+# 复现演示数据（已内置 3s 间隔，请勿调快，会触发风控）
+bash scripts/demo_queries.sh
+```
+
+**为什么只放这两个，而不是做一整套工程**
+
+我们不把辅助脚本说成"项目代码"，也不假装本项目是一个软件工程。写这两个脚本的理由很具体：**把文档里的承诺变成可执行的检查**。
+
+**明确没有做的事**（以及为什么）：
+
+| 没做 | 原因 |
+|---|---|
+| 单元测试 | 运行时主体是提示词与知识库，没有可断言的函数边界。真实数据链路的正确性靠**人工对话验证 + 逐条核对工具返回**（见 [`demo/verification-report.md`](demo/verification-report.md)）。**这是明确认知的短板，不掩饰** |
+| 独立部署的服务端 | 本作品的形态就是百炼托管智能体。为了"看起来像软件工程"而套一层 Web 服务，是装饰不是能力 |
+| 把演示数据 mock 成测试用例 | 飞猪返回的实时性正是本作品的价值所在，mock 掉就失去了验证意义 |
+
+详见 [`scripts/README.md`](scripts/README.md)。
+
+---
+
+## 十二、作者
 
 - 参赛人：AKADONG8（单人参赛）
 - 团队名称：游侠出行
