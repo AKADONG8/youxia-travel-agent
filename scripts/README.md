@@ -51,20 +51,40 @@ DASHSCOPE_API_KEY=sk-xxx python3 scripts/deploy_bailian.py --workspace ws_xxxxxx
 - API Key **只从环境变量 `DASHSCOPE_API_KEY` 读取**，不接受命令行参数（避免出现在 shell 历史与进程列表里）
 - 脚本不把 Key 写进任何文件；`--dry-run` 输出中也不含 Key
 
-**已知限制**
-- **本脚本尚未在真实账号上端到端跑通。** 实测过程与结论：
-  - `--dry-run` 已验证（请求体按官方文档逐字段核对，不需要 Key）
-  - 用真实 Key 实测：`/api/v1/models` 返回 **200**（凭据有效），但 `/api/v1/agentstudio/*` 返回 **403 `Endpoint.AccessDenied`**
-  - 按官方文档，**最可能的原因是 API Key 的「归属业务空间」不是智能体所在的那个**。原文：
-    > 「API Key 的调用权限完全由其归属业务空间决定。」
-    > 「默认业务空间下的 API Key：可调用所有标准模型，以及默认业务空间内的应用。」
-    > 「子业务空间下的 API Key：可调用该子业务空间已获得模型调用授权的标准模型，以及该业务空间内的应用。」
-  - 修复路径：在智能体所在的业务空间里创建 API Key（创建弹窗中的「归属业务空间」选那个空间，「权限」选「全部」），再用页面上该 Key 对应的 Base URL 子域作为 `--workspace`
-  - 脚本的 `diagnose()` 会打印上述排查步骤
-- **排查时的一个坑（已写进脚本注释）**：**不要用 `/api/v1/models` 的返回判断工作空间是否匹配**。实测该接口是**账号级**的——传一个根本不存在的子域（如 `ws-zzzzzzzzzzzzzzzz`）同样返回 200，它不校验 workspace。
-- **关于 workspace_id 的写法**：官方文档示例是 `ws_xxxxxxxxxxxx`（下划线），但 DNS 主机名不允许下划线，所以实际端点用的是 `ws-xxxxxxxxxxxx`（连字符）。直接用 API Key 页面 Base URL 里显示的那一串即可。
-- 飞猪技能的 `skill_id` / `version` 从工作空间技能列表自动匹配；匹配不到会打印全部候选，可用 `--skill-id` / `--skill-version` 手动指定。
-- 接口依据：[API 概览](https://help.aliyun.com/zh/model-studio/managed-agents-api-overview)、[创建 Agent](https://help.aliyun.com/zh/model-studio/agent-create)、[Environment](https://help.aliyun.com/zh/model-studio/environment-api)、[Skill](https://help.aliyun.com/zh/model-studio/skills-api)、[获取 API Key](https://help.aliyun.com/zh/model-studio/get-api-key)。
+**实测状态：已端到端跑通，部署结果与线上智能体逐项一致**
+
+```
+$ python3 scripts/deploy_bailian.py --workspace ws-iiu6t8g21eu3412m --reuse
+▶ 0/4 校验凭据与工作空间 …  ✓ 凭据可用，工作空间可访问
+▶ 1/4 创建运行环境 …        ✓ 环境已创建 env_ODE4ODAwMGVhOGJmNGQ0MW
+▶ 2/4 匹配飞猪官方技能 …    ✓ skill_MDFlZDhlMDUxYjE0NDllYThjND v1.0
+▶ 2.5/4 查找知识库记忆库 …  ✓ 找到记忆库「游戏口味地图」memstore_01M4XVEY64QA841C73654EV5EP
+▶ 3/4 创建智能体 …          ✓ 智能体已创建 agent_01M531VY1ZTQSQRX2JXYW5MQY3  version=1
+```
+
+部署出的智能体与线上 `Dong8`（v6）**逐项比对全部一致**：
+
+| 项 | 结果 |
+|---|---|
+| 模型 / temperature / enable_thinking / thinking_budget | ✓ `qwen3.7-plus` / `0.7` / `true` / `4000` |
+| 系统提示词长度 | ✓ 1351 字符 |
+| 内置工具 | ✓ 9 项，名称与启用状态完全一致（含 `mark_artifacts`） |
+| 技能 | ✓ `skill_MDFlZDhlMDUxYjE0NDllYThjND` v`1.0` |
+| workspace_id | ✓ `ws-iiu6t8g21eu3412m` |
+
+**实测中发现的几件事（都已写进脚本）**
+
+1. **`GET /skills` 在这个工作空间返回空数组** —— 飞猪官方技能不在该列表里。脚本改为：先查列表，查不到就用内置常量 `skill_MDFlZDhlMDUxYjE0NDllYThjND`（该 ID 直接从线上智能体的 `skills` 字段读出）。
+2. **知识库不在系统提示词里，而在「记忆库」**。线上 `Dong8` 的 `system` 只有 1351 字符（就是 `prompts/system-prompt.md` 本身），知识库以 Memory Store「游戏口味地图」形式存在，且**挂在会话上、不在智能体上**，创建会话后不可增删改。因此脚本默认不把知识库拼进 system（与线上一致），只查找并报出记忆库 ID；如需自包含配置可加 `--inline-kb`。
+3. **更新智能体必须带 `version`（乐观锁）**，否则报 `AGENT_010 智能体参数不合法 - version: version 不能为空`。`--reuse --update` 已处理。
+4. **`workspace_id` 在 DNS 主机名里是连字符形式**（`ws-iiu6t8g21eu3412m`）；官方文档示例写的下划线形式（`ws_xxxxxxxxxxxx`）**不能直接当子域用**，会报 `BadRequest.IllegalEndpoint`。正确值就是 API Key 页面 Base URL 里显示的那一串。
+5. **不要用 `/api/v1/models` 判断工作空间是否匹配** —— 实测该接口是**账号级**的，传一个根本不存在的子域（如 `ws-zzzzzzzzzzzzzzzz`）同样返回 200，它不校验 workspace。
+
+**安全设计**
+- API Key **只从环境变量 `DASHSCOPE_API_KEY` 读取**，不接受命令行参数（避免出现在 shell 历史与进程列表里）
+- 脚本不把 Key 写进任何文件；`--dry-run` 输出中也不含 Key
+
+**接口依据**：[API 概览](https://help.aliyun.com/zh/model-studio/managed-agents-api-overview)、[创建 Agent](https://help.aliyun.com/zh/model-studio/agent-create)、[Environment](https://help.aliyun.com/zh/model-studio/environment-api)、[Skill](https://help.aliyun.com/zh/model-studio/skills-api)、[获取 API Key](https://help.aliyun.com/zh/model-studio/get-api-key)。
 
 ## verify_knowledge_base.py
 

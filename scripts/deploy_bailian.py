@@ -75,6 +75,23 @@ ENV_NAME = "youxia-travel-env"
 DEFAULT_MODEL = "qwen3.7-plus"
 FLYAI_CLI = "@fly-ai/flyai-cli@1.0.16"
 
+# 飞猪官方技能：从线上智能体 Dong8 的实际配置中读出的 ID 与版本。
+# 注意：GET /skills 在这个工作空间返回空数组（官方技能不在该列表里），
+# 所以这里以内置常量兜底，避免匹配失败。
+FLYAI_SKILL_ID = "skill_MDFlZDhlMDUxYjE0NDllYThjND"
+FLYAI_SKILL_VERSION = "1.0"
+
+# 线上智能体 Dong8 的模型参数（用于精确复刻）
+MODEL_TUNING = {"temperature": 0.7, "enable_thinking": True, "thinking_budget": 4000}
+
+# 内置工具：与线上智能体 Dong8 的配置逐项一致（9 项）
+BUILTIN_TOOLS = ["bash", "write", "read", "edit", "glob", "grep",
+                 "web_search", "web_fetch", "mark_artifacts"]
+
+# 知识库（游戏口味地图）在线上是以「记忆库」形式存在的，挂在**会话**上而非智能体上。
+# 记忆库在创建会话时挂载，且创建后不可增删改，所以本脚本只负责查找并报出它的 ID。
+MEMORY_STORE_NAME = "游戏口味地图"
+
 
 # ----------------------------------------------------------------- 基础
 
@@ -184,18 +201,41 @@ def diagnose(api):
         print("    未能自动定位原因，请对照上面的 HTTP 状态码排查。")
 
 
-def read_system_prompt():
+def read_system_prompt(inline_kb=False):
+    """读取系统提示词。
+
+    线上智能体 Dong8 的 system 字段**只有系统提示词本身**（约 1350 字符）；
+    知识库是以「记忆库」形式挂在会话上的，不在 system 里。
+    所以默认只返回系统提示词，保持与线上一致；加 --inline-kb 可把知识库
+    拼进 system，得到一个不依赖记忆库的自包含配置。
+    """
     p1 = os.path.join(ROOT, "prompts", "system-prompt.md")
     p2 = os.path.join(ROOT, "knowledge", "game-taste-map.md")
-    for p in (p1, p2):
-        if not os.path.exists(p):
-            raise SystemExit(f"✗ 找不到 {p}")
+    if not os.path.exists(p1):
+        raise SystemExit(f"✗ 找不到 {p1}")
     system = open(p1, encoding="utf-8").read().strip()
+    if not inline_kb:
+        return system
+    if not os.path.exists(p2):
+        raise SystemExit(f"✗ 找不到 {p2}")
     kb = open(p2, encoding="utf-8").read().strip()
     return (system
             + "\n\n---\n\n# 附：游戏口味地图知识库\n\n"
             + "（本知识库随系统提示词一并注入。你必须在映射时严格依据此表，不得自行发明映射关系。）\n\n"
             + kb)
+
+
+def find_memory_store(api):
+    """查找知识库记忆库，返回 (id, name) 或 (None, None)"""
+    try:
+        resp = api.call("GET", "/memory_stores?limit=100")
+        items = resp.get("data") or resp.get("items") or []
+    except RuntimeError:
+        return None, None
+    for it in items:
+        if it.get("name") == MEMORY_STORE_NAME:
+            return it.get("id"), it.get("name")
+    return None, (items[0].get("name") if items else None)
 
 
 def build_environment_payload():
@@ -212,17 +252,23 @@ def build_environment_payload():
 
 
 def build_agent_payload(system, skills):
-    """智能体：模型 + 系统提示词（含知识库）+ 飞猪技能 + 内置工具包"""
+    """智能体：模型 + 系统提示词（含知识库）+ 飞猪技能 + 内置工具包
+
+    字段与参数按线上智能体 Dong8（v6）的实际配置复刻。
+    """
+    model = {"id": DEFAULT_MODEL}
+    model.update(MODEL_TUNING)
     return {
         "name": AGENT_NAME,
         "description": "游戏玩家专属旅行助手：按玩家实际在玩的游戏理解体验偏好，"
                        "结合飞猪真实供给产出可预订旅程。",
-        "model": {"id": DEFAULT_MODEL},
+        "model": model,
         "system": system,
         "tools": [{
             "type": "builtin_toolkit",
-            "default_config": {"enabled": True,
+            "default_config": {"enabled": False,
                                "permission_policy": {"type": "always_allow"}},
+            "configs": [{"name": n, "enabled": True} for n in BUILTIN_TOOLS],
         }],
         "mcp_servers": [],
         "skills": skills,
@@ -231,26 +277,26 @@ def build_agent_payload(system, skills):
 
 
 def find_flyai_skill(api):
-    """列出工作空间可用技能，匹配飞猪官方技能"""
-    resp = api.call("GET", "/skills?limit=100")
-    items = resp.get("items") or resp.get("data") or (resp if isinstance(resp, list) else [])
-    if not items:
-        raise RuntimeError("技能列表为空 —— 请确认该工作空间已安装飞猪官方技能，"
-                           "或在百炼控制台「技能管理」中查看。")
-    cands = []
+    """确定飞猪技能的 skill_id / version。
+
+    先查 GET /skills；若返回空（实测该接口在本工作空间返回空数组，官方技能不在其中），
+    则回退到从线上智能体配置中读出的内置常量。
+    """
+    try:
+        resp = api.call("GET", "/skills?limit=100")
+        items = resp.get("data") or resp.get("items") or (resp if isinstance(resp, list) else [])
+    except RuntimeError:
+        items = []
     for it in items:
         name = (it.get("name") or "") + " " + (it.get("description") or "")
         if "flyai" in name.lower() or "飞猪" in name:
-            cands.append(it)
-    if not cands:
-        print("  ! 未找到名称含 flyai / 飞猪 的技能。全部候选：")
-        for it in items:
-            print(f"      - {it.get('name')}  id={it.get('skill_id') or it.get('id')}")
-        raise RuntimeError("请手动指定飞猪技能的 skill_id 与 version（可用 --skill-id / --skill-version）")
-    pick = cands[0]
-    sid = pick.get("skill_id") or pick.get("id")
-    ver = pick.get("latest_version") or pick.get("version")
-    return {"type": "official", "skill_id": sid, "version": str(ver)}
+            sid = it.get("skill_id") or it.get("id")
+            ver = it.get("version") or it.get("latest_version") or FLYAI_SKILL_VERSION
+            print(f"  · 从技能列表匹配到 {sid} v{ver}")
+            return {"type": "official", "skill_id": sid, "version": str(ver)}
+    print(f"  · 技能列表为空，使用内置常量 {FLYAI_SKILL_ID} v{FLYAI_SKILL_VERSION}")
+    print("    （该 ID 读自线上智能体 Dong8 的实际配置）")
+    return {"type": "official", "skill_id": FLYAI_SKILL_ID, "version": FLYAI_SKILL_VERSION}
 
 
 def find_by_name(api, path, name):
@@ -272,7 +318,12 @@ def main():
     ap.add_argument("--check", action="store_true", help="只校验凭据与工作空间连通性")
     ap.add_argument("--smoke", action="store_true", help="部署后建一个会话发一条消息做冒烟测试")
     ap.add_argument("--reuse", action="store_true", help="按名称复用已存在的环境与智能体，不重复创建")
+    ap.add_argument("--update", action="store_true",
+                    help="配合 --reuse：把已存在的智能体更新为当前配置（生成新版本，需带 version 乐观锁）")
     ap.add_argument("--model", default=DEFAULT_MODEL, help=f"模型 ID（默认 {DEFAULT_MODEL}）")
+    ap.add_argument("--inline-kb", action="store_true",
+                    help="把知识库拼进系统提示词（自包含配置，不依赖记忆库）。"
+                         "默认不拼，与线上智能体保持一致（知识库走记忆库）")
     ap.add_argument("--skill-id", help="手动指定飞猪技能 skill_id")
     ap.add_argument("--skill-version", help="手动指定飞猪技能 version")
     args = ap.parse_args()
@@ -287,7 +338,7 @@ def main():
         print("✗ 请用 --workspace 指定工作空间 ID（控制台右上角下拉菜单可查看）", file=sys.stderr)
         return 2
 
-    system = read_system_prompt()
+    system = read_system_prompt(args.inline_kb)
     api = Api(args.workspace, api_key, dry_run=args.dry_run)
 
     print("=" * 68)
@@ -296,7 +347,8 @@ def main():
     print(f"  Endpoint      {api.base}")
     print(f"  工作空间       {api.workspace}")
     print(f"  模型           {args.model}")
-    print(f"  系统提示词     {len(system)} 字符（系统提示词 + 游戏口味地图知识库）")
+    print(f"  系统提示词     {len(system)} 字符"
+          f"{'（含知识库）' if args.inline_kb else '（不含知识库，与线上一致）'}")
     print(f"  模式           {'DRY-RUN（不实际调用）' if args.dry_run else ('仅校验' if args.check else '正式部署')}")
     print()
 
@@ -343,20 +395,42 @@ def main():
         skills = [find_flyai_skill(api)]
         print(f"  ✓ 已匹配 {skills[0]['skill_id']} v{skills[0]['version']}")
 
+    # ---------- 2.5 记忆库（知识库）----------
+    mem_id, mem_name = (None, None)
+    if not args.dry_run:
+        print("▶ 2.5/4 查找知识库记忆库 …")
+        mem_id, mem_name = find_memory_store(api)
+        if mem_id:
+            print(f"  ✓ 找到记忆库「{mem_name}」 {mem_id}")
+            print("    注意：记忆库挂在【会话】上，不在智能体上，且创建会话后不可增删改。")
+            print("    新建会话时请在「资源」区把它挂上。")
+        else:
+            print(f"  · 未找到名为「{MEMORY_STORE_NAME}」的记忆库"
+                  f"{f'（当前有：{mem_name}）' if mem_name else ''}")
+            print("    如需自包含配置，可用 --inline-kb 把知识库直接拼进系统提示词。")
+
     # ---------- 3. 智能体 ----------
     print("▶ 3/4 创建智能体 …")
     agent = None
     if args.reuse and not args.dry_run:
         agent = find_by_name(api, "/agents", AGENT_NAME)
         if agent:
-            print(f"  · 复用已有智能体 {agent.get('agent_id') or agent.get('id')}")
+            aid = agent.get("agent_id") or agent.get("id")
+            print(f"  · 复用已有智能体 {aid}（当前 v{agent.get('version')}）")
+            if args.update:
+                print("  · --update：按当前配置更新（生成新版本）")
+                payload = build_agent_payload(system, skills)
+                payload["model"]["id"] = args.model
+                payload["version"] = agent.get("version")   # 乐观锁：必须带当前版本
+                agent = api.call("POST", f"/agents/{aid}", payload)
+                print(f"  ✓ 已更新到 v{agent.get('version')}")
     if agent is None:
         payload = build_agent_payload(system, skills)
         payload["model"]["id"] = args.model
         if args.dry_run:
             print("  [dry-run] POST /agents")
             preview = dict(payload)
-            preview["system"] = f"<{len(system)} 字符的系统提示词 + 知识库>"
+            preview["system"] = f"<{len(system)} 字符的系统提示词>"
             print("  " + json.dumps(preview, ensure_ascii=False, indent=2).replace("\n", "\n  "))
         else:
             agent = api.call("POST", "/agents", payload)

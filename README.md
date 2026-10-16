@@ -14,7 +14,7 @@
 | **核心资产** | 自建「游戏口味地图」知识库：5 大类目 / 30 款游戏精确映射 + 8 条风格兜底 + 反问引导 |
 | **最硬的一条证据** | 用户问「有没有 Z587 这种 Z 字头直达」，智能体返回 Z333 / Z588 并**主动纠正「Z587 方向反了」**——价格若是编的，它不会去纠正用户给的车次号 |
 | **可验证性** | 系统提示词 + 知识库 + 4 套演示脚本 + 逐幕记录 + 数据核验表 + 9 张原始截图，全部在仓库内 |
-| **百炼使用深度** | 智能体配置**不依赖控制台手点**——[`scripts/deploy_bailian.py`](scripts/deploy_bailian.py) 用百炼 **Managed Agents API** 把环境、技能、智能体（含系统提示词与知识库）全部代码化，一条命令可复现 |
+| **百炼使用深度** | 智能体配置**不依赖控制台手点**——[`scripts/deploy_bailian.py`](scripts/deploy_bailian.py) 用百炼 **Managed Agents API** 把环境、技能、智能体全部代码化，**已实测跑通**，部署结果与线上智能体逐项一致 |
 | **在线体验** | [**在线查询器（可交互）**](showcase/playground.html) — 输入任意游戏名，实时看三级匹配过程 · [项目展示页](showcase/index.html) |
 
 - 智能体：阿里云百炼 Managed Agent `Dong8`（`agent_01M4XQ0NRHB5JSVRSD2K5SW1XW`，Qwen3.7-Plus）
@@ -427,7 +427,11 @@ python3 scripts/verify_knowledge_base.py --online --limit 10
 bash scripts/demo_queries.sh
 ```
 
-**关于「百炼使用深度」**：本项目的智能体配置**不依赖控制台手点**——`deploy_bailian.py` 用百炼 Managed Agents API 把环境、技能、智能体（含系统提示词与知识库）全部代码化。任何人拿到工作空间 ID 和自己的 API Key，跑一条命令就能得到一个配置一致的智能体。
+**关于「百炼使用深度」**：本项目的智能体配置**不依赖控制台手点**——[`scripts/deploy_bailian.py`](scripts/deploy_bailian.py) 用百炼 **Managed Agents API** 把运行环境、飞猪技能、智能体（模型参数 / 系统提示词 / 9 项内置工具）全部代码化。
+
+**已实测跑通**：部署出的智能体与线上 `Dong8`（v6）**逐项比对全部一致** —— 模型 `qwen3.7-plus`、temperature `0.7`、enable_thinking `true`、thinking_budget `4000`、系统提示词 1351 字符、9 项内置工具名称与启用状态、技能 `skill_MDFlZDhlMDUxYjE0NDllYThjND` v`1.0`、workspace_id `ws-iiu6t8g21eu3412m`。
+
+任何人拿到工作空间 ID 和自己的 API Key，跑一条命令就能得到一个配置一致的智能体。实测细节与踩到的坑见 [`scripts/README.md`](scripts/README.md)。
 
 **为什么只放这两个，而不是做一整套工程**
 
