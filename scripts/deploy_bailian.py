@@ -126,13 +126,15 @@ def diagnose(api):
     """凭据校验失败时，自动定位原因。
 
     判据：同一个工作空间端点上，/api/v1/models 与 /api/v1/agentstudio 的返回对比。
-      · models 200 + agentstudio 403  → 端点与凭据都正常，是 AgentStudio 这一路被拒
-      · models 400                    → 该子域不是合法的 AgentStudio 端点形式
-      · models 403                    → 整个工作空间端点都不可达
+
+    ⚠️ 重要：**不要用 /api/v1/models 的返回判断「工作空间是否匹配」**。
+    实测发现该接口是账号级的——传一个根本不存在的子域（如 ws-zzzzzzzzzzzzzzzz）
+    同样返回 200。它不校验 workspace，因此两个不同子域返回相同模型列表
+    并不能证明它们是同一个工作空间。
     """
     host = f"https://{api.workspace}.{REGION}.maas.aliyuncs.com"
     out = []
-    for path, label in [("/api/v1/models", "模型接口"), (API_PATH + "/agents", "AgentStudio 接口")]:
+    for path, label in [("/api/v1/models", "模型接口(账号级)"), (API_PATH + "/agents", "AgentStudio 接口")]:
         try:
             req = urllib.request.Request(host + path, headers={
                 "Authorization": f"Bearer {api.key}", "Accept": "application/json",
@@ -151,27 +153,33 @@ def diagnose(api):
 
     print("\n  诊断：")
     for label, code, msg in out:
-        print(f"    {label:<18} HTTP {code}  {msg}")
+        print(f"    {label:<20} HTTP {code}  {msg}")
     m = dict((l, c) for l, c, _ in out)
 
     print("\n  判断：")
-    if m.get("模型接口") == 200 and m.get("AgentStudio 接口") == 403:
-        print("    端点地址正确、凭据有效（模型接口 200），但 AgentStudio 这一路被拒绝。")
-        print("    也就是说：这不是「工作空间 ID 写错」，而是这一路接口的访问权限没开。")
-        print("\n    按可能性排查：")
-        print("      1. 【API Key 的权限范围】到百炼控制台 API Key 页面，点该 Key 的「编辑」，")
-        print("         看「权限」是否被设成了「自定义」并限制了范围。建议改成「全部」。")
-        print("         若改不了，直接新建一个 Key，权限选「全部」，再试。")
-        print("      2. 【账号/子账号的权限】官方文档把「当前账号在目标工作空间内具备")
-        print("         Managed Agents 操作权限」列为前置条件。若是 RAM 子账号，需要主账号授权。")
-        print("      3. 【地域】确认控制台右上角地域是「华北 2（北京）」，本接口目前仅支持 cn-beijing。")
-    elif m.get("模型接口") == 400:
+    if m.get("模型接口(账号级)") == 200 and m.get("AgentStudio 接口") == 403:
+        print("    凭据有效（模型接口 200），但 AgentStudio 这一路被拒（403 Endpoint.AccessDenied）。")
+        print("\n    最可能的原因：这个 API Key 的【归属业务空间】不是智能体所在的那个。")
+        print("    官方文档原文：")
+        print("      「API Key 的调用权限完全由其归属业务空间决定。」")
+        print("      「默认业务空间下的 API Key：可调用所有标准模型，以及默认业务空间内的应用。」")
+        print("      「子业务空间下的 API Key：可调用该子业务空间已获得模型调用授权的标准模型，")
+        print("        以及该业务空间内的应用。」")
+        print("    → 也就是说：Key 在哪个业务空间，就只能调那个空间里的应用（含 Managed Agent）。")
+        print("\n    怎么修（约 2 分钟）：")
+        print("      1. 打开百炼控制台，右上角把【工作空间】切换到你的智能体 Dong8 所在的那个")
+        print("      2. 在左侧菜单进入【API Key】页面")
+        print("      3. 点【创建 API Key】，弹窗里把【归属业务空间】选成上面那个空间")
+        print("         （不要用「默认业务空间」），【权限】选「全部」")
+        print("      4. 创建后，页面上该 Key 对应的 Base URL 会显示该空间的子域")
+        print("         把那一串（形如 ws-xxxxxxxxxxxx）作为 --workspace 再跑一次")
+        print("\n    辅助判断：也可以看 Key 列表里的【归属业务空间】列，与智能体所在空间对比。")
+    elif m.get("模型接口(账号级)") == 400:
         print("    该子域不是合法的 AgentStudio 端点形式。")
         print("    → workspace_id 要用 API Key 页面 Base URL 里显示的那一串（形如 ws-xxxxxxxxxxxx）。")
-        print("      注意：DNS 主机名不允许下划线，所以 ws_ 形式会写成 ws- 形式，这是正常的。")
-    elif m.get("模型接口") == 403:
-        print("    整个工作空间端点都不可达。")
-        print("    → workspace_id 很可能不对，或该 Key 不属于这个工作空间。")
+        print("      注意：DNS 主机名不允许下划线，所以官方文档里的 ws_ 形式会写成 ws- 形式。")
+    elif m.get("模型接口(账号级)") == 403:
+        print("    连模型接口都不可达，凭据本身可能有问题。")
     else:
         print("    未能自动定位原因，请对照上面的 HTTP 状态码排查。")
 

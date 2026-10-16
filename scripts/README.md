@@ -54,13 +54,17 @@ DASHSCOPE_API_KEY=sk-xxx python3 scripts/deploy_bailian.py --workspace ws_xxxxxx
 **已知限制**
 - **本脚本尚未在真实账号上端到端跑通。** 实测过程与结论：
   - `--dry-run` 已验证（请求体按官方文档逐字段核对，不需要 Key）
-  - 用真实 Key 实测：`/api/v1/models` 返回 **200**（凭据有效、端点正确），但 `/api/v1/agentstudio/*` 返回 **403 `Endpoint.AccessDenied`**
-  - 因此**不是**工作空间 ID 写错——同一子域上模型接口是通的。问题是 **AgentStudio 这一路接口的访问权限没开**
-  - 排查方向（脚本 `diagnose()` 会按这个顺序提示）：① API Key 的「权限」是否被设成了「自定义」并限制了范围（建议改成「全部」或新建一个权限为「全部」的 Key）；② 若是 RAM 子账号，主账号是否授予了该工作空间的 Managed Agents 操作权限；③ 地域是否选了华北 2（北京）
+  - 用真实 Key 实测：`/api/v1/models` 返回 **200**（凭据有效），但 `/api/v1/agentstudio/*` 返回 **403 `Endpoint.AccessDenied`**
+  - 按官方文档，**最可能的原因是 API Key 的「归属业务空间」不是智能体所在的那个**。原文：
+    > 「API Key 的调用权限完全由其归属业务空间决定。」
+    > 「默认业务空间下的 API Key：可调用所有标准模型，以及默认业务空间内的应用。」
+    > 「子业务空间下的 API Key：可调用该子业务空间已获得模型调用授权的标准模型，以及该业务空间内的应用。」
+  - 修复路径：在智能体所在的业务空间里创建 API Key（创建弹窗中的「归属业务空间」选那个空间，「权限」选「全部」），再用页面上该 Key 对应的 Base URL 子域作为 `--workspace`
+  - 脚本的 `diagnose()` 会打印上述排查步骤
+- **排查时的一个坑（已写进脚本注释）**：**不要用 `/api/v1/models` 的返回判断工作空间是否匹配**。实测该接口是**账号级**的——传一个根本不存在的子域（如 `ws-zzzzzzzzzzzzzzzz`）同样返回 200，它不校验 workspace。
 - **关于 workspace_id 的写法**：官方文档示例是 `ws_xxxxxxxxxxxx`（下划线），但 DNS 主机名不允许下划线，所以实际端点用的是 `ws-xxxxxxxxxxxx`（连字符）。直接用 API Key 页面 Base URL 里显示的那一串即可。
 - 飞猪技能的 `skill_id` / `version` 从工作空间技能列表自动匹配；匹配不到会打印全部候选，可用 `--skill-id` / `--skill-version` 手动指定。
-- 接口依据：[API 概览](https://help.aliyun.com/zh/model-studio/managed-agents-api-overview)、[创建 Agent](https://help.aliyun.com/zh/model-studio/agent-create)、[Environment](https://help.aliyun.com/zh/model-studio/environment-api)、[Skill](https://help.aliyun.com/zh/model-studio/skills-api)。
-- 前置条件（官方文档）：账号已开通百炼，且**当前账号在目标工作空间内具备 Managed Agents 操作权限**。
+- 接口依据：[API 概览](https://help.aliyun.com/zh/model-studio/managed-agents-api-overview)、[创建 Agent](https://help.aliyun.com/zh/model-studio/agent-create)、[Environment](https://help.aliyun.com/zh/model-studio/environment-api)、[Skill](https://help.aliyun.com/zh/model-studio/skills-api)、[获取 API Key](https://help.aliyun.com/zh/model-studio/get-api-key)。
 
 ## verify_knowledge_base.py
 
