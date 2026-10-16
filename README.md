@@ -14,6 +14,7 @@
 | **核心资产** | 自建「游戏口味地图」知识库：5 大类目 / 30 款游戏精确映射 + 8 条风格兜底 + 反问引导 |
 | **最硬的一条证据** | 用户问「有没有 Z587 这种 Z 字头直达」，智能体返回 Z333 / Z588 并**主动纠正「Z587 方向反了」**——价格若是编的，它不会去纠正用户给的车次号 |
 | **可验证性** | 系统提示词 + 知识库 + 4 套演示脚本 + 逐幕记录 + 数据核验表 + 9 张原始截图，全部在仓库内 |
+| **百炼使用深度** | 智能体配置**不依赖控制台手点**——[`scripts/deploy_bailian.py`](scripts/deploy_bailian.py) 用百炼 **Managed Agents API** 把环境、技能、智能体（含系统提示词与知识库）全部代码化，一条命令可复现 |
 | **在线体验** | [**在线查询器（可交互）**](showcase/playground.html) — 输入任意游戏名，实时看三级匹配过程 · [项目展示页](showcase/index.html) |
 
 - 智能体：阿里云百炼 Managed Agent `Dong8`（`agent_01M4XQ0NRHB5JSVRSD2K5SW1XW`，Qwen3.7-Plus）
@@ -322,6 +323,7 @@ youxia-travel-agent/
 ├── .nojekyll                          # GitHub Pages 用
 ├── scripts/
 │   ├── README.md                      # ★ 代码边界说明（为什么只放这几个脚本）
+│   ├── deploy_bailian.py              # ★ 百炼 Managed Agents API 一键部署（配置即代码）
 │   ├── verify_knowledge_base.py       # 知识库校验：把硬约束变成可核对清单
 │   ├── build_playground.py            # 从知识库生成在线查询器的数据
 │   └── demo_queries.sh                # 演示数据复现命令
@@ -399,14 +401,22 @@ youxia-travel-agent/
 
 **本项目的运行时主体不是代码，而是「系统提示词 + 知识库」跑在百炼 Managed Agent 上。** 这一点必须先说清楚。
 
-仓库里有代码，但只有两个**辅助脚本**，且都**不在运行时链路**：
+仓库里有代码，但只有四个**辅助脚本**，且都**不在运行时链路**：
 
 | 脚本 | 解决什么问题 | 是否运行时 |
 |---|---|---|
+| [`scripts/deploy_bailian.py`](scripts/deploy_bailian.py) | 用**百炼 Managed Agents REST API** 把"控制台手点"变成一条命令：建环境 → 匹配飞猪技能 → 建智能体 → 冒烟测试。**这是"百炼使用深度"从「控制台会话」升到「API 编程调用」的那一步** | ❌ 部署期工具 |
 | [`scripts/verify_knowledge_base.py`](scripts/verify_knowledge_base.py) | 把知识库「扩展规则」里那条硬约束（**映射目的地必须能被 flyai 查到真实数据**）从口号变成可核对的清单 | ❌ 维护期工具 |
+| [`scripts/build_playground.py`](scripts/build_playground.py) | 从知识库生成在线查询器的数据，保证页面内容与知识库同步 | ❌ 构建期工具 |
 | [`scripts/demo_queries.sh`](scripts/demo_queries.sh) | 把演示用到的 flyai 查询原样列出，任何人可在本地跑一遍核对数据真伪 | ❌ 复现/核验工具 |
 
 ```bash
+# 一键部署整个智能体（先看会发什么请求，不需要 Key）
+python3 scripts/deploy_bailian.py --dry-run --workspace ws_xxxxxxxxxxxx
+
+# 正式部署（Key 只从环境变量读，不接受命令行参数）
+DASHSCOPE_API_KEY=sk-xxx python3 scripts/deploy_bailian.py --workspace ws_xxxxxxxxxxxx --reuse
+
 # 知识库校验（离线，不需要 Key）
 python3 scripts/verify_knowledge_base.py
 
@@ -416,6 +426,8 @@ python3 scripts/verify_knowledge_base.py --online --limit 10
 # 复现演示数据（已内置 3s 间隔，请勿调快，会触发风控）
 bash scripts/demo_queries.sh
 ```
+
+**关于「百炼使用深度」**：本项目的智能体配置**不依赖控制台手点**——`deploy_bailian.py` 用百炼 Managed Agents API 把环境、技能、智能体（含系统提示词与知识库）全部代码化。任何人拿到工作空间 ID 和自己的 API Key，跑一条命令就能得到一个配置一致的智能体。
 
 **为什么只放这两个，而不是做一整套工程**
 
