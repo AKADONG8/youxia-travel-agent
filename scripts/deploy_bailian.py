@@ -123,13 +123,12 @@ def normalize_workspace(ws):
 # ----------------------------------------------------------------- 步骤
 
 def diagnose(api):
-    """凭据校验失败时，自动判断是「工作空间 ID 不对」还是「没有 AgentStudio 权限」。
+    """凭据校验失败时，自动定位原因。
 
     判据：同一个工作空间端点上，/api/v1/models 与 /api/v1/agentstudio 的返回对比。
-      · models 200 + agentstudio 403  → 端点可达，但 AgentStudio 被拒（多半是 Key 不在
-        智能体所在的工作空间，或该空间未开通 Managed Agents 的 API 权限）
-      · models 403                    → 整个工作空间端点都不可达（workspace ID 可能不对）
+      · models 200 + agentstudio 403  → 端点与凭据都正常，是 AgentStudio 这一路被拒
       · models 400                    → 该子域不是合法的 AgentStudio 端点形式
+      · models 403                    → 整个工作空间端点都不可达
     """
     host = f"https://{api.workspace}.{REGION}.maas.aliyuncs.com"
     out = []
@@ -153,23 +152,23 @@ def diagnose(api):
     print("\n  诊断：")
     for label, code, msg in out:
         print(f"    {label:<18} HTTP {code}  {msg}")
-
     m = dict((l, c) for l, c, _ in out)
+
     print("\n  判断：")
     if m.get("模型接口") == 200 and m.get("AgentStudio 接口") == 403:
-        print("    工作空间端点可达，但 AgentStudio 被拒绝。")
-        print("    → 最可能的原因：这个 API Key 不在「智能体所在的工作空间」里。")
-        print("      百炼的业务空间是相互隔离的：在 A 空间创建的 Key 调不到 B 空间的智能体。")
-        print("\n    怎么修：")
-        print("      1. 打开百炼控制台，右上角把工作空间切换到【你的智能体 Dong8 所在的那个空间】")
-        print("         （打开智能体页面时，浏览器地址栏的 ?workspace= 后面的数字就是它）")
-        print("      2. 在【那个空间】里打开 API Key 页面，新建或复制一个 Key")
-        print("      3. 页面上的 Base URL 会显示该空间的子域（形如 ws-xxxxxxxxxxxx），")
-        print("         把它作为 --workspace 传入，再跑一次")
+        print("    端点地址正确、凭据有效（模型接口 200），但 AgentStudio 这一路被拒绝。")
+        print("    也就是说：这不是「工作空间 ID 写错」，而是这一路接口的访问权限没开。")
+        print("\n    按可能性排查：")
+        print("      1. 【API Key 的权限范围】到百炼控制台 API Key 页面，点该 Key 的「编辑」，")
+        print("         看「权限」是否被设成了「自定义」并限制了范围。建议改成「全部」。")
+        print("         若改不了，直接新建一个 Key，权限选「全部」，再试。")
+        print("      2. 【账号/子账号的权限】官方文档把「当前账号在目标工作空间内具备")
+        print("         Managed Agents 操作权限」列为前置条件。若是 RAM 子账号，需要主账号授权。")
+        print("      3. 【地域】确认控制台右上角地域是「华北 2（北京）」，本接口目前仅支持 cn-beijing。")
     elif m.get("模型接口") == 400:
         print("    该子域不是合法的 AgentStudio 端点形式。")
-        print("    → workspace_id 要用形如 ws_xxxxxxxxxxxx 的值（控制台右上角下拉菜单查看），")
-        print("      而不是控制台地址栏里 ?workspace= 后面的数字。")
+        print("    → workspace_id 要用 API Key 页面 Base URL 里显示的那一串（形如 ws-xxxxxxxxxxxx）。")
+        print("      注意：DNS 主机名不允许下划线，所以 ws_ 形式会写成 ws- 形式，这是正常的。")
     elif m.get("模型接口") == 403:
         print("    整个工作空间端点都不可达。")
         print("    → workspace_id 很可能不对，或该 Key 不属于这个工作空间。")
@@ -259,7 +258,8 @@ def find_by_name(api, path, name):
 
 def main():
     ap = argparse.ArgumentParser(description="游侠出行 · 百炼 Managed Agents API 一键部署")
-    ap.add_argument("--workspace", help="工作空间 ID（控制台右上角下拉菜单，形如 ws_xxxxxxxxxxxx）")
+    ap.add_argument("--workspace", help="工作空间 ID：API Key 页面 Base URL 里显示的那一串，"
+                                        "形如 ws-xxxxxxxxxxxx（DNS 主机名不允许下划线，所以是连字符）")
     ap.add_argument("--dry-run", action="store_true", help="只打印将发送的请求，不实际调用（不需要 Key）")
     ap.add_argument("--check", action="store_true", help="只校验凭据与工作空间连通性")
     ap.add_argument("--smoke", action="store_true", help="部署后建一个会话发一条消息做冒烟测试")

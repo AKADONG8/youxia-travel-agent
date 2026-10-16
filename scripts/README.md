@@ -53,10 +53,11 @@ DASHSCOPE_API_KEY=sk-xxx python3 scripts/deploy_bailian.py --workspace ws_xxxxxx
 
 **已知限制**
 - **本脚本尚未在真实账号上端到端跑通。** 实测过程与结论：
-  - `--dry-run` 已验证（请求体正确、不需要 Key）
-  - 用真实 Key 实测时，工作空间端点上 **模型接口返回 200，AgentStudio 接口返回 403 `Endpoint.AccessDenied`** —— 即端点可达但 AgentStudio 被拒
-  - 最可能的原因：**该 API Key 不在智能体所在的工作空间**（百炼的业务空间相互隔离，A 空间创建的 Key 调不到 B 空间的智能体）
-  - 脚本已内置 `diagnose()`：校验失败时会自动对比两个接口的返回码，直接给出判断与修复步骤
+  - `--dry-run` 已验证（请求体按官方文档逐字段核对，不需要 Key）
+  - 用真实 Key 实测：`/api/v1/models` 返回 **200**（凭据有效、端点正确），但 `/api/v1/agentstudio/*` 返回 **403 `Endpoint.AccessDenied`**
+  - 因此**不是**工作空间 ID 写错——同一子域上模型接口是通的。问题是 **AgentStudio 这一路接口的访问权限没开**
+  - 排查方向（脚本 `diagnose()` 会按这个顺序提示）：① API Key 的「权限」是否被设成了「自定义」并限制了范围（建议改成「全部」或新建一个权限为「全部」的 Key）；② 若是 RAM 子账号，主账号是否授予了该工作空间的 Managed Agents 操作权限；③ 地域是否选了华北 2（北京）
+- **关于 workspace_id 的写法**：官方文档示例是 `ws_xxxxxxxxxxxx`（下划线），但 DNS 主机名不允许下划线，所以实际端点用的是 `ws-xxxxxxxxxxxx`（连字符）。直接用 API Key 页面 Base URL 里显示的那一串即可。
 - 飞猪技能的 `skill_id` / `version` 从工作空间技能列表自动匹配；匹配不到会打印全部候选，可用 `--skill-id` / `--skill-version` 手动指定。
 - 接口依据：[API 概览](https://help.aliyun.com/zh/model-studio/managed-agents-api-overview)、[创建 Agent](https://help.aliyun.com/zh/model-studio/agent-create)、[Environment](https://help.aliyun.com/zh/model-studio/environment-api)、[Skill](https://help.aliyun.com/zh/model-studio/skills-api)。
 - 前置条件（官方文档）：账号已开通百炼，且**当前账号在目标工作空间内具备 Managed Agents 操作权限**。
