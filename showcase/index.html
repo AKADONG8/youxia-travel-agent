@@ -656,8 +656,8 @@
       <p>复现方式是在百炼控制台创建智能体并注入 <code>FLYAI_API_KEY</code>。本页与仓库截图 / 验证报告是永久留存证据；百炼会话受状态机管理，归档后为 <code>terminated</code> 终态、不能再交互。</p>
     </div>
     <div class="bnd">
-      <div class="bt"><i></i>目前没有自动化测试</div>
-      <p>真实数据链路的正确性靠人工对话验证 + 逐条核对工具返回来保证，而非单元测试。这是明确认知的短板。</p>
+      <div class="bt"><i></i>评测打分是初筛，不是终审</div>
+      <p>已补上 12 用例自动化评测（行为层命中 11/12，见仓库 <code>demo/eval-report-merged.md</code>）；数据准确性仍靠逐条核对工具返回，评测打分基于关键词启发式，会有误判。</p>
     </div>
   </div>
 </section>
