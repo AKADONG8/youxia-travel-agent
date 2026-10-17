@@ -13,7 +13,7 @@
 | **差异化** | 不做「游戏名 → 景点」对照表，而是**先识别体验意图，再翻译成行程** |
 | **核心资产** | 自建「游戏口味地图」知识库：5 大类目 / 30 款游戏精确映射 + 8 条风格兜底 + 反问引导 |
 | **最硬的一条证据** | 用户问「有没有 Z587 这种 Z 字头直达」，智能体返回 Z333 / Z588 并**主动纠正「Z587 方向反了」**——价格若是编的，它不会去纠正用户给的车次号 |
-| **可验证性** | 系统提示词 + 知识库 + 4 套演示脚本 + 逐幕记录 + 数据核验表 + 9 张原始截图，全部在仓库内 |
+| **可验证性** | 系统提示词 + 知识库 + 4 套演示脚本 + 逐幕记录 + 数据核验表 + 9 张原始截图 + **12 用例自动化评测（命中 11/12）**，全部在仓库内 |
 | **百炼使用深度** | 智能体配置**不依赖控制台手点**——[`scripts/deploy_bailian.py`](scripts/deploy_bailian.py) 用百炼 **Managed Agents API** 把环境、技能、智能体全部代码化，**已实测跑通**，部署结果与线上智能体逐项一致 |
 | **在线体验** | [**在线查询器（可交互）**](showcase/playground.html) — 输入任意游戏名，实时看三级匹配过程 · [项目展示页](showcase/index.html) |
 
@@ -201,7 +201,7 @@
 3. 安装飞猪官方 Skill `alibaba-flyai/flyai-skill`
 4. 把 [`prompts/system-prompt.md`](prompts/system-prompt.md) 全文粘贴为系统提示词
 5. 把 [`knowledge/game-taste-map.md`](knowledge/game-taste-map.md) 的内容作为知识库上传，或直接追加进系统提示词
-6. 会话环境变量注入 `FLYAI_API_KEY`（申请地址：https://flyai.open.fliggy.com/）
+6. 会话环境变量注入 `FLYAI_API_KEY`（申请地址：<https://flyai.open.fliggy.com/>）
 7. 新开会话，输入：
 
 ```
@@ -260,7 +260,7 @@ FLYAI_API_KEY=your_key_here
   - 本项目交付形态是**智能体配置 + 知识库 + 提示词工程**，**不是独立部署的代码仓库**。复现方式是在百炼控制台按 6.1 的步骤创建智能体并注入 `FLYAI_API_KEY`，然后对话体验。
   - **智能体本体运行在作者本人的百炼工作空间，无法公开点击体验**；但仓库内置了**可公开访问的在线查询器与展示页**（见第十节），查询器是纯前端的知识库映射层，任何人打开即可交互。完整的智能体运行记录见 [`demo/session-transcript.md`](demo/session-transcript.md) 与第四节截图。
 - **百炼会话是智能体的一次运行实例，受状态机管理（`idle` / `running` / `terminated`）。** 本报告所依据的验证会话在完成后已**归档**，状态为 `terminated` 终态——按官方定义，归档后**事件历史保留可查**，但该会话**不能再继续交互**。因此第四节截图与验证报告是**永久留存证据**，不依赖会话是否可交互；复现路径也不需要作者的任何会话实例（归档 ≠ 删除，未使用删除操作）。
-- 目前**没有自动化测试**。真实数据链路的正确性靠人工对话验证 + 逐条核对工具返回来保证（见验证报告），而非单元测试。这是我们明确认知的短板。
+- **自动化评测已补上（此前为明确短板）**：[`scripts/eval_agent.py`](scripts/eval_agent.py) 用 12 个固定用例（三级匹配 / 风格兜底 / 反问引导 / 追问三要素 / 真实数据 / 兜底诚实 / 边界合规 / 不编数据）对智能体跑真实会话并自动打分，结果见 [`demo/eval-report-merged.md`](demo/eval-report-merged.md)——期望行为命中 **11/12**、工具调用 **2/2**、无空回复；唯一未过用例系飞猪 API 风控限流（智能体行为本身正确）。注意：评测打分基于关键词启发式，是初筛而非终审；数据准确性仍靠逐条核对工具返回（见验证报告）。
 
 ---
 
@@ -344,6 +344,9 @@ youxia-travel-agent/
 │   ├── story-a-lol.md                 # 演示脚本 · 故事线A LOL玩家成都电竞观赛
 │   ├── story-a-genshin.md             # 演示脚本 · 故事线A 原神玩家成都观演
 │   └── verification-report.md         # 百炼 Dong8 真实对话验证报告（含数据真实性逐条核验）
+│   ├── eval-report-merged.md          # ★ 12 用例自动化评测报告（命中 11/12）
+│   ├── eval-raw-merged.json           # 评测原始数据：每用例的回复与事件流
+│   └── trace-E02.md                   # 单次会话逐事件追踪（供人工复核工具返回）
 ├── screenshots/
 │   ├── 01-opening.png                 # 第0幕 开场
 │   ├── 02-transport-hotel.png         # 第1幕 挖掘需求与交通住宿
@@ -445,7 +448,7 @@ bash scripts/demo_queries.sh
 
 | 没做 | 原因 |
 |---|---|
-| 单元测试 | 运行时主体是提示词与知识库，没有可断言的函数边界。真实数据链路的正确性靠**人工对话验证 + 逐条核对工具返回**（见 [`demo/verification-report.md`](demo/verification-report.md)）。**这是明确认知的短板，不掩饰** |
+| 单元测试 | 运行时主体是提示词与知识库，没有可断言的函数边界。改为两层验证：**行为层**用 [`scripts/eval_agent.py`](scripts/eval_agent.py) 跑 12 用例自动化评测（[`demo/eval-report-merged.md`](demo/eval-report-merged.md)，命中 11/12）；**数据层**靠逐条核对工具返回（见 [`demo/verification-report.md`](demo/verification-report.md)） |
 | 独立部署的服务端 | 本作品的形态就是百炼托管智能体。为了"看起来像软件工程"而套一层 Web 服务，是装饰不是能力 |
 | 把演示数据 mock 成测试用例 | 飞猪返回的实时性正是本作品的价值所在，mock 掉就失去了验证意义 |
 
