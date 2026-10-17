@@ -324,6 +324,8 @@ youxia-travel-agent/
 ├── scripts/
 │   ├── README.md                      # ★ 代码边界说明（为什么只放这几个脚本）
 │   ├── deploy_bailian.py              # ★ 百炼 Managed Agents API 一键部署（配置即代码）
+│   ├── eval_agent.py                  # ★ Agent 评测：12 个用例 + 自动打分
+│   ├── dump_session.py                # 会话事件流 → 可读时间线（取证）
 │   ├── verify_knowledge_base.py       # 知识库校验：把硬约束变成可核对清单
 │   ├── build_playground.py            # 从知识库生成在线查询器的数据
 │   └── demo_queries.sh                # 演示数据复现命令
@@ -408,6 +410,8 @@ youxia-travel-agent/
 | [`scripts/deploy_bailian.py`](scripts/deploy_bailian.py) | 用**百炼 Managed Agents REST API** 把"控制台手点"变成一条命令：建环境 → 匹配飞猪技能 → 建智能体 → 冒烟测试。**这是"百炼使用深度"从「控制台会话」升到「API 编程调用」的那一步** | ❌ 部署期工具 |
 | [`scripts/verify_knowledge_base.py`](scripts/verify_knowledge_base.py) | 把知识库「扩展规则」里那条硬约束（**映射目的地必须能被 flyai 查到真实数据**）从口号变成可核对的清单 | ❌ 维护期工具 |
 | [`scripts/build_playground.py`](scripts/build_playground.py) | 从知识库生成在线查询器的数据，保证页面内容与知识库同步 | ❌ 构建期工具 |
+| [`scripts/eval_agent.py`](scripts/eval_agent.py) | **把设计承诺变成可量化指标**：12 个固定用例（三级匹配 / 追问三要素 / 真实数据 / 兜底诚实 / 边界合规 / 不编数据）逐例跑真实会话并自动打分 | ❌ 评测工具 |
+| [`scripts/dump_session.py`](scripts/dump_session.py) | 把会话事件流压成可读时间线，能看到每次工具调用的参数与原始返回——比截图更硬的取证方式 | ❌ 取证工具 |
 | [`scripts/demo_queries.sh`](scripts/demo_queries.sh) | 把演示用到的 flyai 查询原样列出，任何人可在本地跑一遍核对数据真伪 | ❌ 复现/核验工具 |
 
 ```bash

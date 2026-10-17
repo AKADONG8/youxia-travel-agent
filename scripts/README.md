@@ -9,6 +9,8 @@
 | `deploy_bailian.py` | 用**百炼 Managed Agents REST API** 把"控制台手点四下"变成一条命令：建环境 → 匹配飞猪技能 → 建智能体（系统提示词 + 知识库）→ 冒烟测试。**这是"百炼使用深度"从「控制台会话」升到「API 编程调用」的那一步** | ❌ 不在。部署期工具（部署出来的智能体才在运行时链路） |
 | `verify_knowledge_base.py` | 知识库的「扩展规则」写了「映射目的地必须能被 flyai 查到真实数据」——只写在文档里就是口号。这个脚本把它变成可核对的清单 | ❌ 不在。开发/维护期工具 |
 | `build_playground.py` | 从知识库生成 [`../showcase/playground.html`](../showcase/playground.html) 的数据，保证**在线查询器的内容永远与知识库同步**，不会两边各写一份 | ❌ 不在。构建期工具 |
+| `eval_agent.py` | **把设计承诺变成可量化的指标**：12 个固定用例（三级匹配 / 追问三要素 / 真实数据 / 兜底诚实 / 边界合规 / 不编数据），逐例跑真实会话并自动打分，产出 `demo/eval-report.md` | ❌ 不在。评测工具 |
+| `dump_session.py` | 把一个会话的事件流压成可读的 Markdown 时间线——能看到每一次工具调用的**参数与实际返回**，比截图更完整的证据 | ❌ 不在。取证工具 |
 | `demo_queries.sh` | 演示中用到的 flyai 查询原样列出，任何人可在本地跑一遍核对数据真伪 | ❌ 不在。复现/核验工具 |
 
 **运行时真正在跑的东西**是：
@@ -107,6 +109,57 @@ python3 scripts/verify_knowledge_base.py --online --limit 10
 - 「具体地名 vs 泛化描述」是**关键词启发式判定，会有误判**。脚本的意义是给出可核对清单，不是给出权威结论——最终由人复核。
 - `--online` 的命令模板按公开文档编写，**未在本机实测**（本机未安装 flyai CLI）。如与实际不符，用 `--poi-cmd` 覆盖。
 - flyai 有 QPS 限制与行为风控，`--online` 已默认限速（3s/次），请勿调快。
+
+## eval_agent.py
+
+**把设计承诺变成可量化指标。** 12 个固定用例，逐例跑真实会话，自动打分。
+
+```bash
+# 先看会跑哪些用例（不需要 Key）
+python3 scripts/eval_agent.py --dry-run
+
+# 跑全部（约 15 分钟，会消耗百炼与飞猪额度）
+DASHSCOPE_API_KEY=sk-xxx python3 scripts/eval_agent.py \
+    --workspace ws-xxxxxxxxxxxx --agent agent_xxx --env env_xxx \
+    --memory-store memstore_xxx
+
+# 只跑前 3 个
+python3 scripts/eval_agent.py ... --limit 3
+
+# 只跑某个用例
+python3 scripts/eval_agent.py ... --only E05
+```
+
+**用例覆盖六类设计承诺**：
+
+| 类目 | 用例 | 验证什么 |
+|---|---|---|
+| 精确映射 | E01–E04（原神 / 黑神话 / LOL / 星露谷） | 第 ① 级是否按知识库命中 |
+| 风格兜底 | E05–E06（像素风 / 剧情向） | 第 ② 级是否命中 |
+| 反问引导 | E07（虚构游戏名） | 第 ③ 级是否反问而非硬猜 |
+| 追问三要素 | E08（只说「我玩原神」） | 缺信息时是否追问 |
+| 真实数据 | E09 / E12 | 是否真的调了 flyai |
+| 兜底诚实 | E10（问一个可能无供给的赛事） | 查不到时是否如实告知 |
+| 边界合规 | E11（要求代付款） | 是否拒绝并给跳转链接 |
+
+**输出**：`demo/eval-report.md`（报告）+ `demo/eval-raw.json`（原始回复，供人工复核）
+
+**设计取舍**：自动打分用**关键词启发式**，会有误判。所以报告里每一行都留了「人工复核」列，并同时输出原始回复。**自动打分是初筛，不是终审。**
+
+**前置条件**：模型必须有可用额度。实测踩过 `AllocationQuota.FreeTierOnly`（免费额度耗尽），此时会话会在最后一次模型调用处报 `model_execution_failed`——工具链已经跑完，只是出不了最终回复。需在控制台充值或关闭「仅使用免费额度」模式。
+
+## dump_session.py
+
+把一个会话的事件流压成可读的 Markdown 时间线。
+
+```bash
+DASHSCOPE_API_KEY=sk-xxx python3 scripts/dump_session.py \
+    --workspace ws-xxxxxxxxxxxx --session sesn_xxx --out demo/trace.md
+```
+
+输出包含：逐步时间线（模型请求 / 工具调用及参数 / 工具原始返回 / 助手回复 / 错误）+ 工具调用统计 + 结论。
+
+**为什么有用**：截图只能证明"看起来对"，事件流能证明**每一次工具调用真的发生了、返回了什么**。做取证比截图更硬。
 
 ## demo_queries.sh
 
