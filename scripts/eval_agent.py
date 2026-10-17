@@ -162,19 +162,26 @@ def run_case(api, case, agent_id, env_id, mem_id, flyai_key, timeout=150):
 
     deadline = time.time() + timeout
     events, reply = [], ""
-    last_len, stable, status = 0, 0, None
+    last_len, stable, status, saw_running = 0, 0, None, False
     while time.time() < deadline:
         time.sleep(4)
-        # 会话状态：idle = 本轮处理结束（见官方状态机）
         try:
             status = api.call("GET", f"/sessions/{sid}").get("status")
         except RuntimeError:
             status = None
+        if status == "running":
+            saw_running = True
         try:
             ev = api.call("GET", f"/sessions/{sid}/events?limit=200")
         except RuntimeError:
             continue
         events = ev.get("data") or ev.get("items") or []
+        # 出现 error 事件就立刻退出，不必等到超时（例如额度耗尽会在这里报）
+        errs = [e for e in events if e.get("type") == "error"]
+        if errs:
+            err = errs[-1].get("error") or {}
+            raise RuntimeError(f"{err.get('code')}: "
+                               f"{(err.get('message') or '')[:220]}")
         texts = []
         for e in events:
             if e.get("role") != "assistant":
@@ -184,12 +191,17 @@ def run_case(api, case, agent_id, env_id, mem_id, flyai_key, timeout=150):
                     texts.append(blk["text"])
         if texts:
             reply = "\n".join(texts)
-        # 结束条件：状态回到 idle 且已有回复；或回复长度连续 3 次不变（约 12s）
-        if reply and status == "idle":
+
+        # 结束条件：**以会话状态为准**。
+        # 官方状态机：收到消息 → running，处理完成 → idle。
+        # 注意不能用「回复长度不变」做主要判据 —— 智能体连续调工具时没有新文本，
+        # 长度会长时间不变，会导致提前退出、只拿到中间过程的一句话。
+        if reply and status == "idle" and saw_running:
             break
+        # 兜底：状态拿不到时，回复连续 12 次（约 48s）不变才认为结束
         if reply and len(reply) == last_len:
             stable += 1
-            if stable >= 3:
+            if stable >= 12 and status is None:
                 break
         else:
             stable = 0
@@ -317,7 +329,8 @@ def main():
 
     cases = CASES
     if args.only:
-        cases = [c for c in cases if c["id"] == args.only]
+        ids = {s.strip() for s in args.only.split(",")}
+        cases = [c for c in cases if c["id"] in ids]
     if args.limit:
         cases = cases[: args.limit]
 
